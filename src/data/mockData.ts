@@ -38,6 +38,63 @@ export interface Testimonial {
   avatar: string;
 }
 
+export interface Application {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  department: string;
+  applicationId: string;
+  status: "pending" | "processing" | "submitted" | "completed" | "rejected";
+  submissionDate: string;
+  lastDate: string;
+  packageUsed: string;
+}
+
+export interface Document {
+  id: string;
+  name: string;
+  type: "aadhaar" | "pan" | "photo" | "signature" | "certificate" | "educational";
+  fileName: string;
+  uploadedAt: string;
+  verified: boolean;
+  size: string;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: "info" | "success" | "warning" | "deadline";
+  read: boolean;
+  createdAt: string;
+}
+
+export interface UserPackage {
+  id: string;
+  name: string;
+  totalForms: number;
+  usedForms: number;
+  remainingForms: number;
+  purchasedAt: string;
+  expiresAt: string;
+  status: "active" | "expired";
+}
+
+export interface SupportTicket {
+  id: string;
+  subject: string;
+  category: "payment" | "form" | "technical" | "query";
+  status: "open" | "in-progress" | "resolved" | "closed";
+  priority: "low" | "medium" | "high";
+  createdAt: string;
+  lastUpdated: string;
+  messages: {
+    sender: "user" | "support";
+    message: string;
+    timestamp: string;
+  }[];
+}
+
 export const mockJobs: Job[] = [
   {
     id: "1",
@@ -234,6 +291,242 @@ export const mockTestimonials: Testimonial[] = [
     avatar: "SR",
   },
 ];
+
+export const mockApplications: Application[] = [
+  {
+    id: "1",
+    jobId: "1",
+    jobTitle: "SSC Combined Graduate Level (CGL) 2024",
+    department: "Staff Selection Commission",
+    applicationId: "EGF-2024-001234",
+    status: "completed",
+    submissionDate: "2024-01-15",
+    lastDate: "2024-03-15",
+    packageUsed: "Popular (20 Forms)",
+  },
+  {
+    id: "2",
+    jobId: "2",
+    jobTitle: "IBPS PO Recruitment 2024",
+    department: "Institute of Banking Personnel Selection",
+    applicationId: "EGF-2024-001235",
+    status: "processing",
+    submissionDate: "2024-01-20",
+    lastDate: "2024-02-28",
+    packageUsed: "Popular (20 Forms)",
+  },
+  {
+    id: "3",
+    jobId: "3",
+    jobTitle: "Railway NTPC Recruitment 2024",
+    department: "Railway Recruitment Board",
+    applicationId: "EGF-2024-001236",
+    status: "submitted",
+    submissionDate: "2024-01-25",
+    lastDate: "2024-03-20",
+    packageUsed: "Popular (20 Forms)",
+  },
+  {
+    id: "4",
+    jobId: "4",
+    jobTitle: "UPSC Civil Services 2024",
+    department: "Union Public Service Commission",
+    applicationId: "EGF-2024-001237",
+    status: "pending",
+    submissionDate: "2024-02-01",
+    lastDate: "2024-02-20",
+    packageUsed: "Popular (20 Forms)",
+  },
+];
+
+export const mockDocuments: Document[] = [
+  {
+    id: "1",
+    name: "Aadhaar Card",
+    type: "aadhaar",
+    fileName: "aadhaar_card.pdf",
+    uploadedAt: "2024-01-10",
+    verified: true,
+    size: "256 KB",
+  },
+  {
+    id: "2",
+    name: "PAN Card",
+    type: "pan",
+    fileName: "pan_card.pdf",
+    uploadedAt: "2024-01-10",
+    verified: true,
+    size: "180 KB",
+  },
+  {
+    id: "3",
+    name: "Passport Photo",
+    type: "photo",
+    fileName: "passport_photo.jpg",
+    uploadedAt: "2024-01-11",
+    verified: true,
+    size: "120 KB",
+  },
+  {
+    id: "4",
+    name: "Signature",
+    type: "signature",
+    fileName: "signature.jpg",
+    uploadedAt: "2024-01-11",
+    verified: true,
+    size: "45 KB",
+  },
+  {
+    id: "5",
+    name: "10th Marksheet",
+    type: "educational",
+    fileName: "10th_marksheet.pdf",
+    uploadedAt: "2024-01-12",
+    verified: false,
+    size: "512 KB",
+  },
+  {
+    id: "6",
+    name: "12th Marksheet",
+    type: "educational",
+    fileName: "12th_marksheet.pdf",
+    uploadedAt: "2024-01-12",
+    verified: false,
+    size: "480 KB",
+  },
+  {
+    id: "7",
+    name: "Graduation Certificate",
+    type: "educational",
+    fileName: "graduation_certificate.pdf",
+    uploadedAt: "2024-01-13",
+    verified: true,
+    size: "620 KB",
+  },
+  {
+    id: "8",
+    name: "Category Certificate (OBC)",
+    type: "certificate",
+    fileName: "obc_certificate.pdf",
+    uploadedAt: "2024-01-13",
+    verified: true,
+    size: "340 KB",
+  },
+];
+
+export const mockNotifications: Notification[] = [
+  {
+    id: "1",
+    title: "Application Submitted Successfully",
+    message: "Your application for SSC CGL 2024 has been submitted successfully.",
+    type: "success",
+    read: false,
+    createdAt: "2024-02-01T10:30:00",
+  },
+  {
+    id: "2",
+    title: "Last Date Reminder",
+    message: "UPSC Civil Services 2024 last date is in 5 days. Apply now!",
+    type: "deadline",
+    read: false,
+    createdAt: "2024-02-15T09:00:00",
+  },
+  {
+    id: "3",
+    title: "New Job Alert",
+    message: "Railway NTPC Recruitment 2024 matching your profile is now open.",
+    type: "info",
+    read: true,
+    createdAt: "2024-01-28T14:00:00",
+  },
+  {
+    id: "4",
+    title: "Document Verified",
+    message: "Your Graduation Certificate has been verified successfully.",
+    type: "success",
+    read: true,
+    createdAt: "2024-01-20T11:30:00",
+  },
+  {
+    id: "5",
+    title: "Payment Successful",
+    message: "Your payment of ₹1,799 for Popular Package was successful.",
+    type: "success",
+    read: true,
+    createdAt: "2024-01-15T16:45:00",
+  },
+];
+
+export const mockUserPackages: UserPackage[] = [
+  {
+    id: "1",
+    name: "Popular (20 Forms)",
+    totalForms: 20,
+    usedForms: 7,
+    remainingForms: 13,
+    purchasedAt: "2024-01-15",
+    expiresAt: "2024-03-15",
+    status: "active",
+  },
+];
+
+export const mockSupportTickets: SupportTicket[] = [
+  {
+    id: "1",
+    subject: "Payment not reflecting in account",
+    category: "payment",
+    status: "resolved",
+    priority: "high",
+    createdAt: "2024-01-20",
+    lastUpdated: "2024-01-22",
+    messages: [
+      {
+        sender: "user",
+        message: "I made a payment of ₹1,799 but the package is not showing in my account.",
+        timestamp: "2024-01-20T10:00:00",
+      },
+      {
+        sender: "support",
+        message: "We have checked your payment. It was processed successfully. Please logout and login again to see the updated package.",
+        timestamp: "2024-01-21T14:30:00",
+      },
+      {
+        sender: "user",
+        message: "Thank you! It's working now.",
+        timestamp: "2024-01-22T09:00:00",
+      },
+    ],
+  },
+  {
+    id: "2",
+    subject: "Form filling assistance needed",
+    category: "form",
+    status: "open",
+    priority: "medium",
+    createdAt: "2024-02-01",
+    lastUpdated: "2024-02-01",
+    messages: [
+      {
+        sender: "user",
+        message: "I need help filling the Railway NTPC form. Some fields are confusing.",
+        timestamp: "2024-02-01T11:00:00",
+      },
+    ],
+  },
+];
+
+export const mockUserProfile = {
+  id: "1",
+  name: "Rahul Sharma",
+  email: "rahul.sharma@email.com",
+  mobile: "+91 98765 43210",
+  city: "New Delhi",
+  state: "Delhi",
+  joinedAt: "2024-01-10",
+  referralCode: "RAHUL2024",
+  referrals: 3,
+  rewardPoints: 150,
+};
 
 export const jobCategories = [
   "All Categories",
