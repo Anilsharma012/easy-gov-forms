@@ -10,8 +10,8 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
@@ -29,38 +29,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-      fetchUser(storedToken);
-    } else {
-      setIsLoading(false);
-    }
+    fetchUser();
   }, []);
 
-  const fetchUser = async (authToken: string) => {
+  const fetchUser = async () => {
     try {
       const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
         credentials: 'include',
       });
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
-      } else {
-        localStorage.removeItem('token');
-        setToken(null);
       }
     } catch (error) {
       console.error('Failed to fetch user:', error);
-      localStorage.removeItem('token');
-      setToken(null);
     } finally {
       setIsLoading(false);
     }
@@ -81,8 +66,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem('token', data.token);
   };
 
   const adminLogin = async (email: string, password: string) => {
@@ -100,8 +83,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem('token', data.token);
   };
 
   const register = async (registerData: RegisterData) => {
@@ -119,8 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem('token', data.token);
   };
 
   const logout = async () => {
@@ -133,13 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       setUser(null);
-      setToken(null);
-      localStorage.removeItem('token');
     }
   };
 
+  const isAuthenticated = !!user;
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, adminLogin, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated, login, adminLogin, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
