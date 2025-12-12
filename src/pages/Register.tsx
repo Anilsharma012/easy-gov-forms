@@ -1,32 +1,62 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, User, Mail, Phone, Lock, Eye, EyeOff, MapPin } from "lucide-react";
+import { FileText, User, Mail, Phone, Lock, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    mobile: "",
+    phone: "",
     email: "",
     password: "",
-    city: "",
-    referralCode: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle registration - frontend only
-    console.log("Register:", formData);
+    
+    if (!acceptTerms) {
+      toast({
+        title: "Terms Required",
+        description: "Please accept the terms and conditions",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await register(formData);
+      toast({
+        title: "Registration Successful",
+        description: "Welcome to EasyGov Forms!",
+      });
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Registration Failed",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="flex min-h-screen">
-      {/* Left side - Decorative */}
       <div className="relative hidden flex-1 lg:block">
         <div className="absolute inset-0 bg-primary">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRoLTJ2LTRoMnY0em0wLTZ2LTRoLTJ2NGgyek0yNiAyNHYtNGgtMnY0aDJ6bTAgNmgtMnY0aDJ2LTR6bS0xMCAxMHYtNGgtMnY0aDJ6bTAgNmgtMnY0aDJ2LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20" />
@@ -67,10 +97,8 @@ const Register = () => {
         </div>
       </div>
 
-      {/* Right side - Form */}
       <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:w-96">
-          {/* Logo */}
           <Link to="/" className="mb-8 flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <FileText className="h-6 w-6 text-primary-foreground" />
@@ -87,7 +115,7 @@ const Register = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-register">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <div className="relative">
@@ -100,22 +128,24 @@ const Register = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
+                  data-testid="input-name"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="mobile">Mobile Number</Label>
+              <Label htmlFor="phone">Mobile Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  id="mobile"
+                  id="phone"
                   type="tel"
                   placeholder="Enter 10-digit mobile number"
                   className="pl-10"
-                  value={formData.mobile}
-                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   required
+                  data-testid="input-phone"
                 />
               </div>
             </div>
@@ -132,6 +162,7 @@ const Register = () => {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
+                  data-testid="input-email"
                 />
               </div>
             </div>
@@ -143,47 +174,23 @@ const Register = () => {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Create a strong password"
+                  placeholder="Create a strong password (min 6 chars)"
                   className="pl-10 pr-10"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
+                  minLength={6}
+                  data-testid="input-password"
                 />
                 <button
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword(!showPassword)}
+                  data-testid="button-toggle-password"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="city">City / State</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="city"
-                  type="text"
-                  placeholder="Enter your city"
-                  className="pl-10"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="referral">Referral Code (Optional)</Label>
-              <Input
-                id="referral"
-                type="text"
-                placeholder="Enter referral code"
-                value={formData.referralCode}
-                onChange={(e) => setFormData({ ...formData, referralCode: e.target.value })}
-              />
             </div>
 
             <div className="flex items-start gap-2">
@@ -191,6 +198,7 @@ const Register = () => {
                 id="terms"
                 checked={acceptTerms}
                 onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
+                data-testid="checkbox-terms"
               />
               <label htmlFor="terms" className="text-sm text-muted-foreground">
                 I agree to the{" "}
@@ -204,14 +212,14 @@ const Register = () => {
               </label>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={!acceptTerms}>
-              Create Account
+            <Button type="submit" className="w-full" size="lg" disabled={!acceptTerms || isLoading} data-testid="button-submit">
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/login" className="font-medium text-primary hover:underline">
+            <Link to="/login" className="font-medium text-primary hover:underline" data-testid="link-login">
               Sign in
             </Link>
           </p>
