@@ -30,6 +30,22 @@ import Referrals from "./pages/dashboard/Referrals";
 import Settings from "./pages/dashboard/Settings";
 import AvailableJobs from "./pages/dashboard/AvailableJobs";
 
+// Admin
+import { AdminLayout } from "./components/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminCSCCenters from "./pages/admin/AdminCSCCenters";
+import AdminLeads from "./pages/admin/AdminLeads";
+import AdminJobs from "./pages/admin/AdminJobs";
+import AdminPackages from "./pages/admin/AdminPackages";
+import AdminPayments from "./pages/admin/AdminPayments";
+import AdminSupport from "./pages/admin/AdminSupport";
+import AdminContent from "./pages/admin/AdminContent";
+import AdminLegal from "./pages/admin/AdminLegal";
+import AdminReports from "./pages/admin/AdminReports";
+import AdminAIMonitoring from "./pages/admin/AdminAIMonitoring";
+import AdminSettings from "./pages/admin/AdminSettings";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -54,7 +70,7 @@ const App = () => (
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/refund" element={<Refund />} />
 
-          {/* Dashboard Routes */}
+          {/* User Dashboard Routes */}
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<DashboardHome />} />
             <Route path="applications" element={<Applications />} />
@@ -65,6 +81,23 @@ const App = () => (
             <Route path="support" element={<Support />} />
             <Route path="referrals" element={<Referrals />} />
             <Route path="settings" element={<Settings />} />
+          </Route>
+
+          {/* Admin Dashboard Routes */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="csc-centers" element={<AdminCSCCenters />} />
+            <Route path="leads" element={<AdminLeads />} />
+            <Route path="jobs" element={<AdminJobs />} />
+            <Route path="packages" element={<AdminPackages />} />
+            <Route path="payments" element={<AdminPayments />} />
+            <Route path="support" element={<AdminSupport />} />
+            <Route path="content" element={<AdminContent />} />
+            <Route path="legal" element={<AdminLegal />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="ai-monitoring" element={<AdminAIMonitoring />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
