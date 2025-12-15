@@ -4,6 +4,10 @@ import cookieParser from 'cookie-parser';
 import { connectDB } from './db';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
+import cscCentersRoutes from './routes/cscCenters';
+import leadsRoutes from './routes/leads';
+import jobsRoutes from './routes/jobs';
+import applicationsRoutes from './routes/applications';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,6 +21,10 @@ app.use(cookieParser());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/csc-centers', cscCentersRoutes);
+app.use('/api/leads', leadsRoutes);
+app.use('/api/jobs', jobsRoutes);
+app.use('/api/applications', applicationsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });

@@ -29,6 +29,22 @@ router.patch('/users/:id/toggle-status', verifyToken, isAdmin, async (req: AuthR
   }
 });
 
+router.patch('/users/:id', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    ).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ message: 'User updated successfully', user });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update user' });
+  }
+});
+
 router.delete('/users/:id', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);

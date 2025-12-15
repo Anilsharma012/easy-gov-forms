@@ -9,6 +9,11 @@ export interface IUser extends Document {
   password: string;
   role: 'user' | 'admin';
   isActive: boolean;
+  city?: string;
+  state?: string;
+  kycVerified: boolean;
+  activePackage?: string;
+  totalApplications: number;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -45,6 +50,25 @@ const userSchema = new Schema<IUser>({
   isActive: {
     type: Boolean,
     default: true,
+  },
+  city: {
+    type: String,
+    trim: true,
+  },
+  state: {
+    type: String,
+    trim: true,
+  },
+  kycVerified: {
+    type: Boolean,
+    default: false,
+  },
+  activePackage: {
+    type: String,
+  },
+  totalApplications: {
+    type: Number,
+    default: 0,
   },
 }, {
   timestamps: true,

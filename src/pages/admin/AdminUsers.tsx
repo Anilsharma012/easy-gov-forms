@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
-  Filter,
   MoreVertical,
   Eye,
   Ban,
@@ -9,8 +8,10 @@ import {
   XCircle,
   UserCheck,
   Download,
+  FileText,
+  Briefcase,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -43,8 +44,37 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { mockAdminUsers, AdminUser } from "@/data/adminMockData";
 import { toast } from "sonner";
+
+interface AdminUser {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  city?: string;
+  state?: string;
+  isActive: boolean;
+  kycVerified: boolean;
+  activePackage?: string;
+  totalApplications: number;
+  createdAt: string;
+}
+
+interface Application {
+  _id: string;
+  formName: string;
+  type: string;
+  status: string;
+  createdAt: string;
+}
+
+interface UserDocument {
+  _id: string;
+  name: string;
+  type: string;
+  status: string;
+  uploadedAt: string;
+}
 
 const statusColors = {
   active: "bg-success/10 text-success border-success/20",
@@ -53,18 +83,143 @@ const statusColors = {
 };
 
 export default function AdminUsers() {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [kycFilter, setKycFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [applicationsDialogOpen, setApplicationsDialogOpen] = useState(false);
+  const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [documents, setDocuments] = useState<UserDocument[]>([]);
+  const [loadingApplications, setLoadingApplications] = useState(false);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
 
-  const filteredUsers = mockAdminUsers.filter((user) => {
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch("/api/admin/users", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      toast.error("Failed to fetch users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchApplications = async (userId: string) => {
+    setLoadingApplications(true);
+    try {
+      const response = await fetch(`/api/applications/user/${userId}`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setApplications(data.applications || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch applications:", error);
+      toast.error("Failed to fetch applications");
+    } finally {
+      setLoadingApplications(false);
+    }
+  };
+
+  const fetchDocuments = async (userId: string) => {
+    setLoadingDocuments(true);
+    try {
+      const response = await fetch(`/api/applications/user/${userId}/documents`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data.documents || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch documents:", error);
+      toast.error("Failed to fetch documents");
+    } finally {
+      setLoadingDocuments(false);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const response = await fetch("/api/applications/users/export", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "users.csv";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success("Users exported successfully");
+      }
+    } catch (error) {
+      console.error("Failed to export:", error);
+      toast.error("Failed to export users");
+    }
+  };
+
+  const handleToggleStatus = async (user: AdminUser) => {
+    try {
+      const response = await fetch(`/api/admin/users/${user._id}/toggle-status`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (response.ok) {
+        toast.success(`User ${user.isActive ? "banned" : "activated"} successfully`);
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error("Failed to toggle status:", error);
+      toast.error("Failed to update user status");
+    }
+  };
+
+  const handleVerifyKYC = async (user: AdminUser) => {
+    try {
+      const response = await fetch(`/api/admin/users/${user._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ kycVerified: true }),
+      });
+      if (response.ok) {
+        toast.success("KYC verified successfully");
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error("Failed to verify KYC:", error);
+      toast.error("Failed to verify KYC");
+    }
+  };
+
+  const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.mobile.includes(searchTerm);
-    const matchesStatus = statusFilter === "all" || user.status === statusFilter;
+      user.phone.includes(searchTerm);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && user.isActive) ||
+      (statusFilter === "inactive" && !user.isActive);
     const matchesKyc =
       kycFilter === "all" ||
       (kycFilter === "verified" && user.kycVerified) ||
@@ -72,9 +227,20 @@ export default function AdminUsers() {
     return matchesSearch && matchesStatus && matchesKyc;
   });
 
-  const handleAction = (action: string, user: AdminUser) => {
-    toast.success(`${action} action performed for ${user.name}`);
+  const stats = {
+    total: users.length,
+    active: users.filter((u) => u.isActive).length,
+    kycVerified: users.filter((u) => u.kycVerified).length,
+    banned: users.filter((u) => !u.isActive).length,
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -85,42 +251,35 @@ export default function AdminUsers() {
             Manage all registered users and their KYC verification.
           </p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleExportCSV}>
           <Download className="h-4 w-4 mr-2" />
           Export CSV
         </Button>
       </div>
 
-      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Users</p>
-            <p className="text-2xl font-bold">{mockAdminUsers.length}</p>
+            <p className="text-2xl font-bold">{stats.total}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Active</p>
-            <p className="text-2xl font-bold text-success">
-              {mockAdminUsers.filter((u) => u.status === "active").length}
-            </p>
+            <p className="text-2xl font-bold text-success">{stats.active}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">KYC Verified</p>
-            <p className="text-2xl font-bold text-primary">
-              {mockAdminUsers.filter((u) => u.kycVerified).length}
-            </p>
+            <p className="text-2xl font-bold text-primary">{stats.kycVerified}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Banned</p>
-            <p className="text-2xl font-bold text-destructive">
-              {mockAdminUsers.filter((u) => u.status === "banned").length}
-            </p>
+            <p className="text-2xl font-bold text-destructive">{stats.banned}</p>
           </CardContent>
         </Card>
       </div>
@@ -146,7 +305,6 @@ export default function AdminUsers() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="banned">Banned</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={kycFilter} onValueChange={setKycFilter}>
@@ -178,7 +336,7 @@ export default function AdminUsers() {
               </TableHeader>
               <TableBody>
                 {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
+                  <TableRow key={user._id}>
                     <TableCell>
                       <div>
                         <p className="font-medium">{user.name}</p>
@@ -189,10 +347,10 @@ export default function AdminUsers() {
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {user.city}, {user.state}
+                      {user.city || "-"}, {user.state || "-"}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      {new Date(user.registeredAt).toLocaleDateString()}
+                      {new Date(user.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
                       {user.kycVerified ? (
@@ -213,8 +371,11 @@ export default function AdminUsers() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={statusColors[user.status]}>
-                        {user.status}
+                      <Badge
+                        variant="outline"
+                        className={user.isActive ? statusColors.active : statusColors.inactive}
+                      >
+                        {user.isActive ? "active" : "inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
@@ -238,30 +399,25 @@ export default function AdminUsers() {
                             View Details
                           </DropdownMenuItem>
                           {!user.kycVerified && (
-                            <DropdownMenuItem
-                              onClick={() => handleAction("Verify KYC", user)}
-                            >
+                            <DropdownMenuItem onClick={() => handleVerifyKYC(user)}>
                               <UserCheck className="h-4 w-4 mr-2" />
                               Verify KYC
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
-                          {user.status !== "banned" ? (
-                            <DropdownMenuItem
-                              onClick={() => handleAction("Ban", user)}
-                              className="text-destructive"
-                            >
-                              <Ban className="h-4 w-4 mr-2" />
-                              Ban User
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem
-                              onClick={() => handleAction("Unban", user)}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Unban User
-                            </DropdownMenuItem>
-                          )}
+                          <DropdownMenuItem onClick={() => handleToggleStatus(user)}>
+                            {user.isActive ? (
+                              <>
+                                <Ban className="h-4 w-4 mr-2" />
+                                Ban User
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Activate User
+                              </>
+                            )}
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -279,14 +435,11 @@ export default function AdminUsers() {
         </CardContent>
       </Card>
 
-      {/* View User Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
-            <DialogDescription>
-              Complete information about the user.
-            </DialogDescription>
+            <DialogDescription>Complete information about the user.</DialogDescription>
           </DialogHeader>
           {selectedUser && (
             <div className="space-y-4">
@@ -299,9 +452,9 @@ export default function AdminUsers() {
                   <p className="text-sm text-muted-foreground">Status</p>
                   <Badge
                     variant="outline"
-                    className={statusColors[selectedUser.status]}
+                    className={selectedUser.isActive ? statusColors.active : statusColors.inactive}
                   >
-                    {selectedUser.status}
+                    {selectedUser.isActive ? "active" : "inactive"}
                   </Badge>
                 </div>
                 <div>
@@ -310,19 +463,17 @@ export default function AdminUsers() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Mobile</p>
-                  <p>{selectedUser.mobile}</p>
+                  <p>{selectedUser.phone}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Location</p>
                   <p>
-                    {selectedUser.city}, {selectedUser.state}
+                    {selectedUser.city || "-"}, {selectedUser.state || "-"}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Registered</p>
-                  <p>
-                    {new Date(selectedUser.registeredAt).toLocaleDateString()}
-                  </p>
+                  <p>{new Date(selectedUser.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">KYC Status</p>
@@ -347,13 +498,138 @@ export default function AdminUsers() {
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
-                <Button variant="outline" className="flex-1">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    fetchApplications(selectedUser._id);
+                    setApplicationsDialogOpen(true);
+                  }}
+                >
+                  <Briefcase className="h-4 w-4 mr-2" />
                   View Applications
                 </Button>
-                <Button variant="outline" className="flex-1">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    fetchDocuments(selectedUser._id);
+                    setDocumentsDialogOpen(true);
+                  }}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
                   View Documents
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={applicationsDialogOpen} onOpenChange={setApplicationsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>User Applications</DialogTitle>
+            <DialogDescription>
+              Applications submitted by {selectedUser?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {loadingApplications ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          ) : applications.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Form Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {applications.map((app) => (
+                    <TableRow key={app._id}>
+                      <TableCell className="font-medium">{app.formName}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{app.type}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{app.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(app.createdAt).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No applications found
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={documentsDialogOpen} onOpenChange={setDocumentsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>User Documents</DialogTitle>
+            <DialogDescription>
+              Documents uploaded by {selectedUser?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {loadingDocuments ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          ) : documents.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Document Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Uploaded</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {documents.map((doc) => (
+                    <TableRow key={doc._id}>
+                      <TableCell className="font-medium">{doc.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{doc.type}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            doc.status === "verified"
+                              ? "bg-success/10 text-success"
+                              : doc.status === "rejected"
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-warning/10 text-warning"
+                          }
+                        >
+                          {doc.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(doc.uploadedAt).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No documents found
             </div>
           )}
         </DialogContent>
