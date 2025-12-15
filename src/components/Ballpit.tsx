@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
@@ -33,9 +33,17 @@ const Ballpit = ({
   const velocitiesRef = useRef<THREE.Vector3[]>([]);
   const mouseRef = useRef(new THREE.Vector2(0, 0));
   const frameRef = useRef<number>(0);
+  const [webGLSupported, setWebGLSupported] = useState(true);
 
   useEffect(() => {
     if (!containerRef.current) return;
+    
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) {
+      setWebGLSupported(false);
+      return;
+    }
 
     const container = containerRef.current;
     const width = container.clientWidth;
@@ -268,6 +276,41 @@ const Ballpit = ({
       }
     };
   }, [count, colors, minSize, maxSize, gravity, friction, wallBounce, followCursor]);
+
+  if (!webGLSupported) {
+    return (
+      <div 
+        className={`absolute inset-0 ${className}`}
+        style={{ 
+          background: 'radial-gradient(ellipse at center, #166534 0%, #15803d 30%, #0f172a 100%)',
+        }}
+      >
+        <div className="absolute inset-0 overflow-hidden">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full opacity-30"
+              style={{
+                width: `${30 + Math.random() * 60}px`,
+                height: `${30 + Math.random() * 60}px`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                background: `hsl(${140 + Math.random() * 20}, 70%, ${40 + Math.random() * 20}%)`,
+                animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 2}s`,
+              }}
+            />
+          ))}
+        </div>
+        <style>{`
+          @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div 
