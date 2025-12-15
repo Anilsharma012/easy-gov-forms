@@ -83,9 +83,9 @@ const CSCDashboard = () => {
           <h1 className="text-2xl font-bold text-foreground">
             Welcome, {center?.ownerName || "Partner"}!
           </h1>
-          <p className="text-muted-foreground">
-            {center?.centerName} {center && getStatusBadge(center.status)}
-          </p>
+          <div className="text-muted-foreground flex items-center gap-2">
+            <span>{center?.centerName}</span> {center && getStatusBadge(center.status)}
+          </div>
         </div>
       </div>
 

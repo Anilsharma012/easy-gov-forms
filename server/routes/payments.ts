@@ -94,11 +94,11 @@ router.post('/create-order', verifyToken, async (req: AuthRequest, res: Response
       receipt: `ord_${Date.now()}`,
       notes: {
         packageId: pkg._id.toString(),
-        userId: userId,
-        price: pkg.price,
-        forms: pkg.forms,
+        userId: userId || '',
+        price: String(pkg.price),
+        forms: String(pkg.forms),
       },
-    });
+    }) as any;
 
     res.json({
       orderId: order.id,

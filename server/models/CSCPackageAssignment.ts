@@ -7,11 +7,13 @@ export interface ICSCPackageAssignment extends Document {
   totalLeads: number;
   usedLeads: number;
   remainingLeads: number;
-  price: number;
+  amount: number;
   expiresAt: Date;
   status: 'active' | 'expired' | 'exhausted';
   assignedAt: Date;
-  assignedBy: mongoose.Types.ObjectId;
+  assignedBy?: mongoose.Types.ObjectId;
+  paymentId?: string;
+  orderId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,11 +25,13 @@ const cscPackageAssignmentSchema = new Schema<ICSCPackageAssignment>({
   totalLeads: { type: Number, required: true },
   usedLeads: { type: Number, default: 0 },
   remainingLeads: { type: Number, required: true },
-  price: { type: Number, required: true },
+  amount: { type: Number, required: true },
   expiresAt: { type: Date, required: true },
   status: { type: String, enum: ['active', 'expired', 'exhausted'], default: 'active' },
   assignedAt: { type: Date, default: Date.now },
   assignedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  paymentId: { type: String },
+  orderId: { type: String },
 }, { timestamps: true });
 
 cscPackageAssignmentSchema.index({ cscCenterId: 1, status: 1 });

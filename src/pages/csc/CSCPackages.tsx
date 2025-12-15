@@ -42,7 +42,7 @@ const CSCPackages = () => {
     const fetchPackages = async () => {
       try {
         const [packagesRes, myPackagesRes] = await Promise.all([
-          fetch("/api/csc-centers/lead-packages/all", { credentials: "include" }),
+          fetch("/api/csc/dashboard/available-packages", { credentials: "include" }),
           fetch("/api/csc/dashboard/packages", { credentials: "include" }),
         ]);
 
@@ -66,10 +66,74 @@ const CSCPackages = () => {
   }, []);
 
   const handlePurchase = async (packageId: string) => {
-    toast({
-      title: "Coming Soon",
-      description: "Online package purchase will be available soon. Please contact admin.",
-    });
+    try {
+      const orderRes = await fetch("/api/csc/dashboard/purchase-package/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ packageId }),
+      });
+
+      if (!orderRes.ok) {
+        const error = await orderRes.json();
+        throw new Error(error.message || "Failed to create order");
+      }
+
+      const orderData = await orderRes.json();
+
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "Easy Gov Forms",
+        description: `CSC Lead Package - ${orderData.packageName}`,
+        order_id: orderData.orderId,
+        handler: async function (response: any) {
+          try {
+            const verifyRes = await fetch("/api/csc/dashboard/purchase-package/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+
+            if (verifyRes.ok) {
+              toast({
+                title: "Payment Successful",
+                description: "Package has been added to your account!",
+              });
+              window.location.reload();
+            } else {
+              const error = await verifyRes.json();
+              throw new Error(error.message || "Payment verification failed");
+            }
+          } catch (error: any) {
+            toast({
+              title: "Payment Failed",
+              description: error.message || "Failed to verify payment",
+              variant: "destructive",
+            });
+          }
+        },
+        prefill: {},
+        theme: {
+          color: "#2563eb",
+        },
+      };
+
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.open();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to initiate payment",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {

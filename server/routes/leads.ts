@@ -5,6 +5,34 @@ import { verifyToken, isAdmin, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+router.post('/enquiry', async (req, res: Response) => {
+  try {
+    const { name, mobile, email, formName, type, message } = req.body;
+    
+    if (!name || !mobile || !formName || !type) {
+      return res.status(400).json({ message: 'Name, mobile, form name and type are required' });
+    }
+    
+    const lead = new Lead({
+      name,
+      mobile,
+      email,
+      formName,
+      type,
+      notes: message,
+      status: 'new',
+    });
+    
+    await lead.save();
+    res.status(201).json({ 
+      message: 'Your enquiry has been submitted successfully. We will contact you soon.',
+      leadId: lead._id 
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to submit enquiry' });
+  }
+});
+
 router.get('/', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const leads = await Lead.find().populate('assignedCenterId').sort({ createdAt: -1 });
@@ -132,7 +160,7 @@ router.patch('/:id/assign', verifyToken, isAdmin, async (req: AuthRequest, res: 
       return res.status(404).json({ message: 'Lead not found' });
     }
     
-    center.leadsAssigned += 1;
+    center.totalLeads += 1;
     await center.save();
     
     res.json({ message: 'Lead assigned successfully', lead });

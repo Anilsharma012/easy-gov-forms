@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -10,8 +11,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Users } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, Users, Phone, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface Lead {
   _id: string;
@@ -29,24 +38,52 @@ const CSCLeads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const { toast } = useToast();
+
+  const fetchLeads = async () => {
+    try {
+      const response = await fetch("/api/csc/dashboard/leads", { credentials: "include" });
+      if (response.ok) {
+        const data = await response.json();
+        setLeads(data.leads || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch leads:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchLeads = async () => {
-      try {
-        const response = await fetch("/api/csc/dashboard/leads", { credentials: "include" });
-        if (response.ok) {
-          const data = await response.json();
-          setLeads(data.leads || []);
-        }
-      } catch (error) {
-        console.error("Failed to fetch leads:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchLeads();
   }, []);
+
+  const handleStatusUpdate = async (leadId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/csc/dashboard/leads/${leadId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Status Updated",
+          description: `Lead marked as ${newStatus}`,
+        });
+        fetchLeads();
+      } else {
+        throw new Error("Failed to update status");
+      }
+    } catch (error) {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update lead status",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -141,6 +178,7 @@ const CSCLeads = () => {
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -149,12 +187,56 @@ const CSCLeads = () => {
                     <TableCell className="font-medium">
                       {lead.name}
                     </TableCell>
-                    <TableCell>{lead.mobile}</TableCell>
+                    <TableCell>
+                      <a href={`tel:${lead.mobile}`} className="flex items-center gap-1 text-blue-600 hover:underline">
+                        <Phone className="h-3 w-3" />
+                        {lead.mobile}
+                      </a>
+                    </TableCell>
                     <TableCell>{lead.formName}</TableCell>
                     <TableCell>{getTypeBadge(lead.type)}</TableCell>
                     <TableCell>{getStatusBadge(lead.status)}</TableCell>
                     <TableCell>
                       {format(new Date(lead.createdAt), "dd MMM yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {lead.status === "new" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                            onClick={() => handleStatusUpdate(lead._id, "in-progress")}
+                          >
+                            Start
+                          </Button>
+                        )}
+                        {lead.status === "in-progress" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-green-600 border-green-600 hover:bg-green-50"
+                              onClick={() => handleStatusUpdate(lead._id, "completed")}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Complete
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-gray-600 border-gray-600 hover:bg-gray-50"
+                              onClick={() => handleStatusUpdate(lead._id, "cancelled")}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                        {(lead.status === "completed" || lead.status === "cancelled") && (
+                          <span className="text-xs text-muted-foreground">No actions</span>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

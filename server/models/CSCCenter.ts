@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IVerificationRequest {
+  _id?: mongoose.Types.ObjectId;
   type: 'document' | 'video';
   requestedAt: Date;
   message?: string;

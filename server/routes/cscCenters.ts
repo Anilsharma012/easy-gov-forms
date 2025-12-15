@@ -49,6 +49,59 @@ router.get('/lead-packages/all', verifyToken, isAdmin, async (req: AuthRequest, 
   }
 });
 
+router.post('/lead-packages/seed', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const existingPackages = await CSCLeadPackage.countDocuments();
+    if (existingPackages > 0) {
+      return res.json({ message: 'Packages already exist', seeded: false });
+    }
+    
+    const seedPackages = [
+      {
+        name: 'Starter Pack',
+        leads: 10,
+        price: 499,
+        originalPrice: 999,
+        validity: 30,
+        features: ['10 Lead Credits', '30 Days Validity', 'Email Support'],
+        isActive: true,
+      },
+      {
+        name: 'Growth Pack',
+        leads: 25,
+        price: 999,
+        originalPrice: 1999,
+        validity: 45,
+        features: ['25 Lead Credits', '45 Days Validity', 'Priority Support', 'Lead Analytics'],
+        isActive: true,
+      },
+      {
+        name: 'Professional Pack',
+        leads: 50,
+        price: 1799,
+        originalPrice: 3499,
+        validity: 60,
+        features: ['50 Lead Credits', '60 Days Validity', 'Dedicated Support', 'Lead Analytics', 'Custom Reports'],
+        isActive: true,
+      },
+      {
+        name: 'Enterprise Pack',
+        leads: 100,
+        price: 2999,
+        originalPrice: 5999,
+        validity: 90,
+        features: ['100 Lead Credits', '90 Days Validity', '24/7 Support', 'Advanced Analytics', 'Custom Reports', 'API Access'],
+        isActive: true,
+      },
+    ];
+    
+    await CSCLeadPackage.insertMany(seedPackages);
+    res.status(201).json({ message: 'Seed packages created', seeded: true, count: seedPackages.length });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to seed packages' });
+  }
+});
+
 router.post('/lead-packages', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { name, leads, price, originalPrice, validity, features } = req.body;
