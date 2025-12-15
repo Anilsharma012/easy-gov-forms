@@ -6,6 +6,15 @@ import {
   User,
   LogOut,
   Building2,
+  Briefcase,
+  Wallet,
+  Receipt,
+  CreditCard,
+  ClipboardList,
+  FileArchive,
+  UserCircle,
+  MessageSquare,
+  HeadphonesIcon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +39,11 @@ const menuItems = [
     url: "/csc/dashboard",
   },
   {
+    title: "Jobs Applied",
+    icon: Briefcase,
+    url: "/csc/dashboard/jobs-applied",
+  },
+  {
     title: "My Leads",
     icon: Users,
     url: "/csc/dashboard/leads",
@@ -38,6 +52,46 @@ const menuItems = [
     title: "Lead Packages",
     icon: Package,
     url: "/csc/dashboard/packages",
+  },
+  {
+    title: "Task Assignment",
+    icon: ClipboardList,
+    url: "/csc/dashboard/tasks",
+  },
+  {
+    title: "User Information",
+    icon: UserCircle,
+    url: "/csc/dashboard/users",
+  },
+  {
+    title: "Old Documentation",
+    icon: FileArchive,
+    url: "/csc/dashboard/old-docs",
+  },
+  {
+    title: "Wallet",
+    icon: Wallet,
+    url: "/csc/dashboard/wallet",
+  },
+  {
+    title: "Transactions",
+    icon: Receipt,
+    url: "/csc/dashboard/transactions",
+  },
+  {
+    title: "Payment Info",
+    icon: CreditCard,
+    url: "/csc/dashboard/payment-info",
+  },
+  {
+    title: "Chat",
+    icon: MessageSquare,
+    url: "/csc/dashboard/chat",
+  },
+  {
+    title: "Support",
+    icon: HeadphonesIcon,
+    url: "/csc/dashboard/support",
   },
   {
     title: "Profile",

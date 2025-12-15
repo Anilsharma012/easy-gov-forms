@@ -59,6 +59,15 @@ import CSCDashboard from "./pages/csc/CSCDashboard";
 import CSCLeads from "./pages/csc/CSCLeads";
 import CSCPackages from "./pages/csc/CSCPackages";
 import CSCProfile from "./pages/csc/CSCProfile";
+import CSCJobsApplied from "./pages/csc/CSCJobsApplied";
+import CSCWallet from "./pages/csc/CSCWallet";
+import CSCTransactions from "./pages/csc/CSCTransactions";
+import CSCPaymentInfo from "./pages/csc/CSCPaymentInfo";
+import CSCTasks from "./pages/csc/CSCTasks";
+import CSCOldDocs from "./pages/csc/CSCOldDocs";
+import CSCUsers from "./pages/csc/CSCUsers";
+import CSCChat from "./pages/csc/CSCChat";
+import CSCSupport from "./pages/csc/CSCSupport";
 
 const queryClient = new QueryClient();
 
@@ -124,8 +133,17 @@ const App = () => (
           <Route path="/csc/register" element={<CSCRegister />} />
           <Route path="/csc/dashboard" element={<CSCLayout />}>
             <Route index element={<CSCDashboard />} />
+            <Route path="jobs-applied" element={<CSCJobsApplied />} />
             <Route path="leads" element={<CSCLeads />} />
             <Route path="packages" element={<CSCPackages />} />
+            <Route path="tasks" element={<CSCTasks />} />
+            <Route path="users" element={<CSCUsers />} />
+            <Route path="old-docs" element={<CSCOldDocs />} />
+            <Route path="wallet" element={<CSCWallet />} />
+            <Route path="transactions" element={<CSCTransactions />} />
+            <Route path="payment-info" element={<CSCPaymentInfo />} />
+            <Route path="chat" element={<CSCChat />} />
+            <Route path="support" element={<CSCSupport />} />
             <Route path="profile" element={<CSCProfile />} />
           </Route>
 
