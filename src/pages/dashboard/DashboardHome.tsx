@@ -51,6 +51,14 @@ interface Job {
   applicationDeadline: string;
 }
 
+interface DocumentStatus {
+  hasAllRequired: boolean;
+  allVerified: boolean;
+  missingDocuments: string[];
+  pendingDocuments: string[];
+  uploadedCount: number;
+}
+
 const statusColors: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
   processing: "bg-info/10 text-info border-info/20",
@@ -65,6 +73,7 @@ export default function DashboardHome() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [packages, setPackages] = useState<UserPackage[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [documentStatus, setDocumentStatus] = useState<DocumentStatus | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -72,10 +81,11 @@ export default function DashboardHome() {
 
   const fetchDashboardData = async () => {
     try {
-      const [appsRes, packagesRes, jobsRes] = await Promise.all([
+      const [appsRes, packagesRes, jobsRes, docsRes] = await Promise.all([
         fetch("/api/user-applications/my-applications", { credentials: "include" }),
         fetch("/api/user-packages/my-packages", { credentials: "include" }),
         fetch("/api/jobs?limit=5", { credentials: "include" }),
+        fetch("/api/documents/check-required", { credentials: "include" }),
       ]);
 
       if (appsRes.ok) {
@@ -91,6 +101,11 @@ export default function DashboardHome() {
       if (jobsRes.ok) {
         const data = await jobsRes.json();
         setJobs(data.jobs || []);
+      }
+
+      if (docsRes.ok) {
+        const data = await docsRes.json();
+        setDocumentStatus(data);
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
@@ -120,6 +135,15 @@ export default function DashboardHome() {
     );
   }
 
+  const documentTypeLabels: Record<string, string> = {
+    aadhaar: "Aadhaar Card",
+    photo: "Passport Photo",
+    signature: "Signature",
+    "10th_marksheet": "10th Marksheet",
+  };
+
+  const showDocumentAlert = activePackage && documentStatus && !documentStatus.hasAllRequired;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -130,6 +154,38 @@ export default function DashboardHome() {
           Here's an overview of your applications and packages.
         </p>
       </div>
+
+      {showDocumentAlert && (
+        <Card className="border-warning bg-warning/10 shadow-lg">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-6 w-6 text-warning mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-warning text-lg">
+                  Upload Required Documents
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  You need to upload the following documents before you can apply for jobs:
+                </p>
+                <ul className="mt-2 space-y-1">
+                  {documentStatus.missingDocuments.map((docType) => (
+                    <li key={docType} className="text-sm flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+                      {documentTypeLabels[docType] || docType}
+                    </li>
+                  ))}
+                </ul>
+                <Button asChild className="mt-3" size="sm">
+                  <Link to="/dashboard/documents">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Upload Documents Now
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="card-hover">

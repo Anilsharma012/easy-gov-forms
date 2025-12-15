@@ -10,6 +10,7 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ interface EligibilityCheck {
   remainingForms?: number;
   packageName?: string;
   message?: string;
+  missingDocuments?: string[];
 }
 
 export default function JobApply() {
@@ -142,6 +144,9 @@ export default function JobApply() {
         if (data.needsPackage) {
           toast.error("Please purchase a package to apply");
           navigate("/dashboard/packages");
+        } else if (data.needsDocuments) {
+          toast.error("Please upload required documents first");
+          navigate("/dashboard/documents");
         } else {
           toast.error(data.message || "Failed to submit application");
         }
@@ -189,15 +194,41 @@ export default function JobApply() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           {eligibility && !eligibility.canApply && (
-            <Card className="border-destructive bg-destructive/5">
-              <CardContent className="p-4 flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-destructive" />
-                <div>
-                  <p className="font-medium text-destructive">
+            <Card className={`border-destructive ${eligibility.reason === 'missing_documents' ? 'border-warning bg-warning/10' : 'bg-destructive/5'}`}>
+              <CardContent className="p-4 flex items-start gap-3">
+                <AlertCircle className={`h-5 w-5 mt-0.5 ${eligibility.reason === 'missing_documents' ? 'text-warning' : 'text-destructive'}`} />
+                <div className="flex-1">
+                  <p className={`font-medium ${eligibility.reason === 'missing_documents' ? 'text-warning' : 'text-destructive'}`}>
                     {eligibility.reason === "already_applied"
                       ? "You have already applied for this job"
+                      : eligibility.reason === "missing_documents"
+                      ? "Please upload required documents first"
                       : "No active package available"}
                   </p>
+                  {eligibility.reason === "missing_documents" && eligibility.missingDocuments && (
+                    <>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        You need to upload the following documents:
+                      </p>
+                      <ul className="mt-2 space-y-1">
+                        {eligibility.missingDocuments.map((doc) => (
+                          <li key={doc} className="text-sm flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+                            {doc === 'aadhaar' ? 'Aadhaar Card' : 
+                             doc === 'photo' ? 'Passport Photo' :
+                             doc === 'signature' ? 'Signature' :
+                             doc === '10th_marksheet' ? '10th Marksheet' : doc}
+                          </li>
+                        ))}
+                      </ul>
+                      <Button asChild size="sm" className="mt-3">
+                        <Link to="/dashboard/documents">
+                          <FileText className="h-4 w-4 mr-2" />
+                          Upload Documents
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                   {eligibility.reason === "no_package" && (
                     <Button asChild size="sm" className="mt-2">
                       <Link to="/dashboard/packages">Buy Package</Link>

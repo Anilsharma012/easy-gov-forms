@@ -4,6 +4,9 @@ import { Application } from '../models/Application';
 import { Job } from '../models/Job';
 import { UserPackage } from '../models/UserPackage';
 import { User } from '../models/User';
+import { UserDocument } from '../models/UserDocument';
+
+const REQUIRED_DOCUMENT_TYPES = ['aadhaar', 'photo', 'signature', '10th_marksheet'];
 
 const router = Router();
 
@@ -35,6 +38,21 @@ router.post('/apply', verifyToken, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ 
         message: 'No active package with remaining forms. Please purchase a package to apply.',
         needsPackage: true,
+      });
+    }
+
+    const userDocuments = await UserDocument.find({ userId });
+    const uploadedTypes = userDocuments.map(doc => doc.type);
+    const missingDocuments = REQUIRED_DOCUMENT_TYPES.filter(
+      type => !uploadedTypes.includes(type)
+    );
+
+    if (missingDocuments.length > 0) {
+      return res.status(400).json({
+        message: 'Please upload all required documents before applying',
+        needsDocuments: true,
+        missingDocuments,
+        requiredDocuments: REQUIRED_DOCUMENT_TYPES,
       });
     }
 
@@ -108,6 +126,22 @@ router.get('/check-eligibility/:jobId', verifyToken, async (req: AuthRequest, re
         canApply: false, 
         reason: 'no_package',
         message: 'No active package with remaining forms',
+      });
+    }
+
+    const userDocuments = await UserDocument.find({ userId });
+    const uploadedTypes = userDocuments.map(doc => doc.type);
+    const missingDocuments = REQUIRED_DOCUMENT_TYPES.filter(
+      type => !uploadedTypes.includes(type)
+    );
+
+    if (missingDocuments.length > 0) {
+      return res.json({
+        canApply: false,
+        reason: 'missing_documents',
+        message: 'Please upload all required documents before applying',
+        missingDocuments,
+        requiredDocuments: REQUIRED_DOCUMENT_TYPES,
       });
     }
 

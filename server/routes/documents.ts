@@ -137,6 +137,44 @@ router.delete('/:documentId', verifyToken, async (req: AuthRequest, res: Respons
   }
 });
 
+const REQUIRED_DOCUMENT_TYPES = ['aadhaar', 'photo', 'signature', '10th_marksheet'];
+
+router.get('/check-required', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    
+    const userDocuments = await UserDocument.find({ userId });
+    
+    const uploadedTypes = userDocuments.map(doc => doc.type);
+    const verifiedTypes = userDocuments
+      .filter(doc => doc.status === 'verified')
+      .map(doc => doc.type);
+    
+    const missingDocuments = REQUIRED_DOCUMENT_TYPES.filter(
+      type => !uploadedTypes.includes(type)
+    );
+    
+    const pendingDocuments = REQUIRED_DOCUMENT_TYPES.filter(
+      type => uploadedTypes.includes(type) && !verifiedTypes.includes(type)
+    );
+    
+    const hasAllRequired = missingDocuments.length === 0;
+    const allVerified = missingDocuments.length === 0 && pendingDocuments.length === 0;
+    
+    res.json({
+      hasAllRequired,
+      allVerified,
+      missingDocuments,
+      pendingDocuments,
+      requiredDocuments: REQUIRED_DOCUMENT_TYPES,
+      uploadedCount: uploadedTypes.length,
+      verifiedCount: verifiedTypes.length,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to check required documents' });
+  }
+});
+
 router.get('/all', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const documents = await UserDocument.find()
