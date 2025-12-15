@@ -4,6 +4,14 @@ import { CSCCenter } from '../models/CSCCenter';
 import { CSCPackageAssignment } from '../models/CSCPackageAssignment';
 import { CSCLeadPackage } from '../models/CSCLeadPackage';
 import { Lead } from '../models/Lead';
+import { CSCWallet } from '../models/CSCWallet';
+import { WalletTransaction } from '../models/WalletTransaction';
+import { CSCPaymentInfo } from '../models/CSCPaymentInfo';
+import { CSCTask } from '../models/CSCTask';
+import { Application } from '../models/Application';
+import { UserDocument } from '../models/UserDocument';
+import { ChatMessage } from '../models/ChatMessage';
+import { CSCSupportTicket } from '../models/CSCSupportTicket';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 
@@ -333,6 +341,487 @@ router.post('/purchase-package/verify', verifyToken, isCSC, async (req: AuthRequ
   } catch (error: any) {
     console.error('CSC Verify payment error:', error);
     res.status(500).json({ message: error.message || 'Failed to verify payment' });
+  }
+});
+
+router.get('/wallet', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    let wallet = await CSCWallet.findOne({ centerId: cscCenter._id });
+    if (!wallet) {
+      wallet = new CSCWallet({
+        centerId: cscCenter._id,
+        balance: 0,
+        pendingWithdrawal: 0,
+        totalEarnings: 0,
+        totalWithdrawn: 0,
+      });
+      await wallet.save();
+    }
+
+    res.json({ wallet });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch wallet' });
+  }
+});
+
+router.post('/wallet/withdraw', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid withdrawal amount' });
+    }
+
+    const cscCenter = await CSCCenter.findOne({ userId });
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const wallet = await CSCWallet.findOne({ centerId: cscCenter._id });
+    if (!wallet) {
+      return res.status(404).json({ message: 'Wallet not found' });
+    }
+
+    if (wallet.balance < amount) {
+      return res.status(400).json({ message: 'Insufficient balance' });
+    }
+
+    const paymentInfo = await CSCPaymentInfo.findOne({ centerId: cscCenter._id, status: 'verified' });
+    if (!paymentInfo) {
+      return res.status(400).json({ message: 'Please add and verify your payment details first' });
+    }
+
+    wallet.balance -= amount;
+    wallet.pendingWithdrawal += amount;
+    await wallet.save();
+
+    const transaction = new WalletTransaction({
+      walletId: wallet._id,
+      centerId: cscCenter._id,
+      type: 'withdrawal',
+      amount,
+      description: 'Withdrawal request',
+      status: 'pending',
+      reference: `WD-${Date.now()}`,
+    });
+    await transaction.save();
+
+    res.json({ message: 'Withdrawal request submitted', transaction });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to request withdrawal' });
+  }
+});
+
+router.get('/transactions', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const transactions = await WalletTransaction.find({ centerId: cscCenter._id })
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    res.json({ transactions });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch transactions' });
+  }
+});
+
+router.get('/payment-info', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const paymentInfo = await CSCPaymentInfo.findOne({ centerId: cscCenter._id });
+    res.json({ paymentInfo });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch payment info' });
+  }
+});
+
+router.post('/payment-info', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { bankName, accountNumber, ifscCode, accountHolderName, accountType, upiId } = req.body;
+
+    const cscCenter = await CSCCenter.findOne({ userId });
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    let paymentInfo = await CSCPaymentInfo.findOne({ centerId: cscCenter._id });
+    if (paymentInfo) {
+      paymentInfo.bankName = bankName;
+      paymentInfo.accountNumber = accountNumber;
+      paymentInfo.ifscCode = ifscCode;
+      paymentInfo.accountHolderName = accountHolderName;
+      paymentInfo.accountType = accountType;
+      paymentInfo.upiId = upiId;
+      paymentInfo.status = 'pending';
+      await paymentInfo.save();
+    } else {
+      paymentInfo = new CSCPaymentInfo({
+        centerId: cscCenter._id,
+        bankName,
+        accountNumber,
+        ifscCode,
+        accountHolderName,
+        accountType,
+        upiId,
+        status: 'pending',
+      });
+      await paymentInfo.save();
+    }
+
+    res.json({ message: 'Payment info saved', paymentInfo });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to save payment info' });
+  }
+});
+
+router.get('/tasks', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const tasks = await CSCTask.find({ centerId: cscCenter._id })
+      .populate('userId', 'name email mobile')
+      .populate('leadId', 'name email mobile')
+      .sort({ createdAt: -1 });
+
+    res.json({ tasks });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch tasks' });
+  }
+});
+
+router.patch('/tasks/:taskId/status', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { taskId } = req.params;
+    const { status } = req.body;
+
+    const cscCenter = await CSCCenter.findOne({ userId });
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const task = await CSCTask.findOne({ _id: taskId, centerId: cscCenter._id });
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    task.status = status;
+    if (status === 'completed') {
+      task.completedAt = new Date();
+    }
+    await task.save();
+
+    res.json({ message: 'Task status updated', task });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update task status' });
+  }
+});
+
+router.get('/jobs-applied', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const leads = await Lead.find({ assignedCenterId: cscCenter._id });
+    const leadEmails = leads.map(l => l.email).filter(Boolean);
+    const leadMobiles = leads.map(l => l.mobile).filter(Boolean);
+
+    const applications = await Application.find({})
+      .populate('jobId', 'title department applicationDeadline')
+      .populate({
+        path: 'userId',
+        match: { $or: [{ email: { $in: leadEmails } }, { mobile: { $in: leadMobiles } }] },
+        select: 'name email mobile'
+      })
+      .sort({ createdAt: -1 });
+
+    const filteredApplications = applications.filter(app => app.userId);
+
+    res.json({ applications: filteredApplications });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch jobs applied' });
+  }
+});
+
+router.get('/old-documents', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const leads = await Lead.find({ assignedCenterId: cscCenter._id });
+    const leadEmails = leads.map(l => l.email).filter(Boolean);
+    const leadMobiles = leads.map(l => l.mobile).filter(Boolean);
+
+    const documents = await UserDocument.find({})
+      .populate({
+        path: 'userId',
+        match: { $or: [{ email: { $in: leadEmails } }, { mobile: { $in: leadMobiles } }] },
+        select: 'name email mobile'
+      })
+      .sort({ createdAt: -1 });
+
+    const filteredDocuments = documents.filter(doc => doc.userId);
+
+    res.json({ documents: filteredDocuments });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch documents' });
+  }
+});
+
+router.get('/users', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const leads = await Lead.find({ assignedCenterId: cscCenter._id })
+      .sort({ createdAt: -1 });
+
+    res.json({ users: leads });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch users' });
+  }
+});
+
+router.get('/chat/users', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const leads = await Lead.find({ assignedCenterId: cscCenter._id })
+      .sort({ createdAt: -1 });
+
+    const users = leads.map(lead => ({
+      _id: lead._id,
+      name: lead.name,
+      email: lead.email || '',
+      type: 'lead',
+      mobile: lead.mobile,
+    }));
+
+    res.json({ users });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch chat users' });
+  }
+});
+
+router.get('/chat/conversations', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const messages = await ChatMessage.aggregate([
+      {
+        $match: {
+          $or: [
+            { senderId: cscCenter._id, senderType: 'csc' },
+            { receiverId: cscCenter._id, receiverType: 'csc' },
+          ],
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$conversationId',
+          lastMessage: { $first: '$$ROOT' },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ['$receiverId', cscCenter._id] }, { $eq: ['$read', false] }] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { 'lastMessage.createdAt': -1 } },
+    ]);
+
+    res.json({ conversations: messages });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch conversations' });
+  }
+});
+
+router.get('/chat/messages/:conversationId', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { conversationId } = req.params;
+    
+    const cscCenter = await CSCCenter.findOne({ userId });
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const messages = await ChatMessage.find({ conversationId })
+      .sort({ createdAt: 1 })
+      .limit(100);
+
+    await ChatMessage.updateMany(
+      { conversationId, receiverId: cscCenter._id, read: false },
+      { read: true, readAt: new Date() }
+    );
+
+    res.json({ messages });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch messages' });
+  }
+});
+
+router.post('/chat/send', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { receiverId, receiverType, content, type, fileUrl, fileName } = req.body;
+
+    const cscCenter = await CSCCenter.findOne({ userId });
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const conversationId = [cscCenter._id.toString(), receiverId].sort().join('_');
+
+    const message = new ChatMessage({
+      senderId: cscCenter._id,
+      senderType: 'csc',
+      receiverId,
+      receiverType,
+      conversationId,
+      content,
+      type: type || 'text',
+      fileUrl,
+      fileName,
+    });
+
+    await message.save();
+
+    res.json({ message });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to send message' });
+  }
+});
+
+router.get('/support', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const cscCenter = await CSCCenter.findOne({ userId });
+    
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const tickets = await CSCSupportTicket.find({ centerId: cscCenter._id })
+      .sort({ createdAt: -1 });
+
+    res.json({ tickets });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch tickets' });
+  }
+});
+
+router.post('/support', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { subject, description, category, priority } = req.body;
+
+    const cscCenter = await CSCCenter.findOne({ userId });
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const ticketNumber = `CSC-${Date.now().toString(36).toUpperCase()}`;
+
+    const ticket = new CSCSupportTicket({
+      centerId: cscCenter._id,
+      ticketNumber,
+      subject,
+      description,
+      category: category || 'other',
+      priority: priority || 'medium',
+      status: 'open',
+    });
+
+    await ticket.save();
+
+    res.json({ message: 'Support ticket created', ticket });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to create ticket' });
+  }
+});
+
+router.post('/support/:ticketId/reply', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { ticketId } = req.params;
+    const { message } = req.body;
+
+    const cscCenter = await CSCCenter.findOne({ userId });
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center not found' });
+    }
+
+    const ticket = await CSCSupportTicket.findOne({ _id: ticketId, centerId: cscCenter._id });
+    if (!ticket) {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
+    ticket.responses.push({
+      responderId: cscCenter._id,
+      responderType: 'csc',
+      message,
+      createdAt: new Date(),
+    });
+
+    await ticket.save();
+
+    res.json({ message: 'Reply added', ticket });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to add reply' });
   }
 });
 
