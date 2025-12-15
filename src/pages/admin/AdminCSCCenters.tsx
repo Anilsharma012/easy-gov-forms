@@ -58,7 +58,8 @@ interface CSCCenter {
   district: string;
   state: string;
   status: "verified" | "pending" | "rejected";
-  leadsAssigned: number;
+  totalLeads: number;
+  usedLeads: number;
   registeredAt: string;
 }
 
@@ -273,7 +274,7 @@ export default function AdminCSCCenters() {
     total: centers.length,
     verified: centers.filter((c) => c.status === "verified").length,
     pending: centers.filter((c) => c.status === "pending").length,
-    totalLeads: centers.reduce((acc, c) => acc + c.leadsAssigned, 0),
+    totalLeads: centers.reduce((acc, c) => acc + (c.totalLeads || 0), 0),
   };
 
   if (loading) {
@@ -414,7 +415,7 @@ export default function AdminCSCCenters() {
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      {center.leadsAssigned}
+                      {center.usedLeads || 0} / {center.totalLeads || 0}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -530,8 +531,8 @@ export default function AdminCSCCenters() {
                   <p>{new Date(selectedCenter.registeredAt).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Leads Assigned</p>
-                  <p>{selectedCenter.leadsAssigned}</p>
+                  <p className="text-sm text-muted-foreground">Leads</p>
+                  <p>{selectedCenter.usedLeads || 0} used / {selectedCenter.totalLeads || 0} total</p>
                 </div>
               </div>
             </div>

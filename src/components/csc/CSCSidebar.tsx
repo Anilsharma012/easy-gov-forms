@@ -1,18 +1,11 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
-  FileText,
-  Briefcase,
+  Users,
   Package,
-  FolderOpen,
-  Bell,
-  LifeBuoy,
-  Gift,
-  Settings,
+  User,
   LogOut,
-  ChevronLeft,
-  Leaf,
-  UserCheck,
+  Building2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -25,80 +18,67 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const menuItems = [
   {
     title: "Dashboard",
     icon: LayoutDashboard,
-    url: "/dashboard",
+    url: "/csc/dashboard",
   },
   {
-    title: "My Applications",
-    icon: FileText,
-    url: "/dashboard/applications",
+    title: "My Leads",
+    icon: Users,
+    url: "/csc/dashboard/leads",
   },
   {
-    title: "Available Jobs",
-    icon: Briefcase,
-    url: "/dashboard/jobs",
-  },
-  {
-    title: "My Packages",
+    title: "Lead Packages",
     icon: Package,
-    url: "/dashboard/packages",
+    url: "/csc/dashboard/packages",
   },
   {
-    title: "Document Vault",
-    icon: FolderOpen,
-    url: "/dashboard/documents",
-  },
-  {
-    title: "KYC Verification",
-    icon: UserCheck,
-    url: "/dashboard/kyc",
-  },
-  {
-    title: "Notifications",
-    icon: Bell,
-    url: "/dashboard/notifications",
-  },
-  {
-    title: "Support & Tickets",
-    icon: LifeBuoy,
-    url: "/dashboard/support",
-  },
-  {
-    title: "Referral & Rewards",
-    icon: Gift,
-    url: "/dashboard/referrals",
-  },
-  {
-    title: "Account Settings",
-    icon: Settings,
-    url: "/dashboard/settings",
+    title: "Profile",
+    icon: User,
+    url: "/csc/dashboard/profile",
   },
 ];
 
-export function DashboardSidebar() {
+export function CSCSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { state } = useSidebar();
+  const { toast } = useToast();
   const isCollapsed = state === "collapsed";
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/csc/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      toast({
+        title: "Logged Out",
+        description: "You have been logged out successfully.",
+      });
+      navigate("/csc/login");
+    } catch (error) {
+      navigate("/csc/login");
+    }
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="p-4">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Leaf className="w-5 h-5 text-primary-foreground" />
+        <Link to="/csc/dashboard" className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-white" />
           </div>
           {!isCollapsed && (
             <span className="font-bold text-lg text-sidebar-foreground">
-              Easy Gov Forms
+              CSC Portal
             </span>
           )}
         </Link>
@@ -140,14 +120,13 @@ export function DashboardSidebar() {
       <SidebarFooter className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Logout">
-              <Link
-                to="/"
-                className="flex items-center gap-3 text-destructive hover:bg-destructive/10"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Logout</span>
-              </Link>
+            <SidebarMenuButton
+              tooltip="Logout"
+              onClick={handleLogout}
+              className="flex items-center gap-3 text-destructive hover:bg-destructive/10 cursor-pointer"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Logout</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

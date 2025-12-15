@@ -3,11 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileText, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { Building2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const Login = () => {
+const CSCLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -15,7 +14,6 @@ const Login = () => {
     password: "",
   });
 
-  const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -24,12 +22,24 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      const response = await fetch("/api/csc/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
+
       toast({
         title: "Login Successful",
-        description: "Welcome back!",
+        description: "Welcome to CSC Dashboard!",
       });
-      navigate("/dashboard");
+      navigate("/csc/dashboard");
     } catch (error: any) {
       toast({
         title: "Login Failed",
@@ -46,22 +56,22 @@ const Login = () => {
       <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <Link to="/" className="mb-8 flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <FileText className="h-6 w-6 text-primary-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
+              <Building2 className="h-6 w-6 text-white" />
             </div>
             <span className="text-xl font-bold text-foreground">
-              Easy<span className="text-primary">Gov</span> Forms
+              CSC <span className="text-blue-600">Partner Portal</span>
             </span>
           </Link>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-foreground">Welcome back!</h2>
+            <h2 className="text-2xl font-bold text-foreground">CSC Center Login</h2>
             <p className="mt-2 text-muted-foreground">
-              Sign in to continue applying for government jobs.
+              Sign in to manage your leads and earn commissions.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6" data-testid="form-login">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -74,7 +84,6 @@ const Login = () => {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
-                  data-testid="input-email"
                 />
               </div>
             </div>
@@ -82,9 +91,6 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -96,68 +102,61 @@ const Login = () => {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
-                  data-testid="input-password"
                 />
                 <button
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword(!showPassword)}
-                  data-testid="button-toggle-password"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading} data-testid="button-submit">
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" size="lg" disabled={isLoading}>
               {isLoading ? "Signing In..." : "Sign In"}
             </Button>
           </form>
 
-          <div className="mt-6 space-y-2">
-            <Link to="/admin/login">
-              <Button variant="outline" className="w-full" data-testid="button-admin-login">
-                Admin Login
-              </Button>
-            </Link>
-            <Link to="/csc/login">
-              <Button variant="outline" className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100">
-                CSC Partner Login
+          <div className="mt-6">
+            <Link to="/login">
+              <Button variant="outline" className="w-full">
+                User Login
               </Button>
             </Link>
           </div>
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
-            New to Easy Gov Forms?{" "}
-            <Link to="/register" className="font-medium text-primary hover:underline" data-testid="link-register">
-              Create an account
+            Want to become a CSC Partner?{" "}
+            <Link to="/csc/register" className="font-medium text-blue-600 hover:underline">
+              Register Now
             </Link>
           </p>
         </div>
       </div>
 
       <div className="relative hidden flex-1 lg:block">
-        <div className="absolute inset-0 bg-primary">
+        <div className="absolute inset-0 bg-blue-600">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRoLTJ2LTRoMnY0em0wLTZ2LTRoLTJ2NGgyek0yNiAyNHYtNGgtMnY0aDJ6bTAgNmgtMnY0aDJ2LTR6bS0xMCAxMHYtNGgtMnY0aDJ6bTAgNmgtMnY0aDJ2LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20" />
         </div>
         <div className="absolute inset-0 flex items-center justify-center p-12">
-          <div className="max-w-md text-center text-primary-foreground">
-            <h2 className="mb-4 text-3xl font-bold">Apply for 1000+ Government Jobs</h2>
-            <p className="mb-8 text-primary-foreground/80">
-              AI-assisted form filling, secure document storage, and real-time application tracking.
+          <div className="max-w-md text-center text-white">
+            <h2 className="mb-4 text-3xl font-bold">Earn with Every Application</h2>
+            <p className="mb-8 text-white/80">
+              Help citizens apply for government jobs and earn commissions on every successful application.
             </p>
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <p className="text-3xl font-bold">50K+</p>
-                <p className="text-sm text-primary-foreground/70">Users</p>
+                <p className="text-3xl font-bold">500+</p>
+                <p className="text-sm text-white/70">CSC Partners</p>
               </div>
               <div>
-                <p className="text-3xl font-bold">1K+</p>
-                <p className="text-sm text-primary-foreground/70">Jobs</p>
+                <p className="text-3xl font-bold">10K+</p>
+                <p className="text-sm text-white/70">Leads Generated</p>
               </div>
               <div>
-                <p className="text-3xl font-bold">99%</p>
-                <p className="text-sm text-primary-foreground/70">Success</p>
+                <p className="text-3xl font-bold">5L+</p>
+                <p className="text-sm text-white/70">Earned</p>
               </div>
             </div>
           </div>
@@ -167,4 +166,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default CSCLogin;

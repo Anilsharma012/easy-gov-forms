@@ -32,6 +32,7 @@ import Referrals from "./pages/dashboard/Referrals";
 import Settings from "./pages/dashboard/Settings";
 import AvailableJobs from "./pages/dashboard/AvailableJobs";
 import JobApply from "./pages/dashboard/JobApply";
+import KYC from "./pages/dashboard/KYC";
 
 // Admin
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -48,6 +49,15 @@ import AdminLegal from "./pages/admin/AdminLegal";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminAIMonitoring from "./pages/admin/AdminAIMonitoring";
 import AdminSettings from "./pages/admin/AdminSettings";
+
+// CSC Portal
+import { CSCLayout } from "./components/csc/CSCLayout";
+import CSCLogin from "./pages/csc/CSCLogin";
+import CSCRegister from "./pages/csc/CSCRegister";
+import CSCDashboard from "./pages/csc/CSCDashboard";
+import CSCLeads from "./pages/csc/CSCLeads";
+import CSCPackages from "./pages/csc/CSCPackages";
+import CSCProfile from "./pages/csc/CSCProfile";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +93,7 @@ const App = () => (
             <Route path="jobs/apply/:id" element={<JobApply />} />
             <Route path="packages" element={<Packages />} />
             <Route path="documents" element={<Documents />} />
+            <Route path="kyc" element={<KYC />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="support" element={<Support />} />
             <Route path="referrals" element={<Referrals />} />
@@ -104,6 +115,16 @@ const App = () => (
             <Route path="reports" element={<AdminReports />} />
             <Route path="ai-monitoring" element={<AdminAIMonitoring />} />
             <Route path="settings" element={<AdminSettings />} />
+          </Route>
+
+          {/* CSC Portal Routes */}
+          <Route path="/csc/login" element={<CSCLogin />} />
+          <Route path="/csc/register" element={<CSCRegister />} />
+          <Route path="/csc/dashboard" element={<CSCLayout />}>
+            <Route index element={<CSCDashboard />} />
+            <Route path="leads" element={<CSCLeads />} />
+            <Route path="packages" element={<CSCPackages />} />
+            <Route path="profile" element={<CSCProfile />} />
           </Route>
 
             <Route path="*" element={<NotFound />} />

@@ -14,6 +14,9 @@ import supportRoutes from './routes/support';
 import referralsRoutes from './routes/referrals';
 import documentsRoutes from './routes/documents';
 import userApplicationsRoutes from './routes/userApplications';
+import cscAuthRoutes from './routes/cscAuth';
+import cscDashboardRoutes from './routes/cscDashboard';
+import userKycRoutes from './routes/userKyc';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,6 +42,9 @@ app.use('/api/support', supportRoutes);
 app.use('/api/referrals', referralsRoutes);
 app.use('/api/documents', documentsRoutes);
 app.use('/api/user-applications', userApplicationsRoutes);
+app.use('/api/csc/auth', cscAuthRoutes);
+app.use('/api/csc/dashboard', cscDashboardRoutes);
+app.use('/api/kyc', userKycRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });

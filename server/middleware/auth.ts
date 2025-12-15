@@ -44,3 +44,17 @@ export function isAdmin(req: AuthRequest, res: Response, next: NextFunction) {
   }
   next();
 }
+
+export function isCSC(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.user?.role !== 'csc') {
+    return res.status(403).json({ message: 'Access denied. CSC Center only.' });
+  }
+  next();
+}
+
+export function isAdminOrCSC(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.user?.role !== 'admin' && req.user?.role !== 'csc') {
+    return res.status(403).json({ message: 'Access denied. Admin or CSC only.' });
+  }
+  next();
+}
