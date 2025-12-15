@@ -1,0 +1,40 @@
+- The UI of the My Gyo Form app should resemble the CSC center interface.
+- After registration, users should be directed straight to the dashboard.
+- The CSC center side menu should include five additional menus.
+- The first additional menu will be "Jobs Applied" under "Dashboards."
+- The second additional menu will be for "Packages," listing all assigned packages.
+- Once a package is purchased and approved by an admin, the admin will assign a lead, which will then appear on the CSC center's dashboard.
+- All documents submitted by users through the user dashboard should be approved by the admin.
+- The CSC center admin will approve leads and user leads, and all associated documents will be sent to the user's details and the CSC center user.
+- The system will then begin working on the tasks.
+- There will be two additional side menu options: "Live Chat" and a "WhatsApp" button.
+- Users needing to retrieve information from the CSC center via WhatsApp can use the chat option, which will be accessible from both the user dashboard and the CSC center dashboard.
+- The CSC center will assign the user with the chat capability.
+- If a user has questions and wants to chat, they can do so, and the user will receive a notification on their dashboard.
+- The user can share documents within the chat.
+- The CSC center will display the total number of leads.
+- There will be a "Wallet" option.
+- As the user completes tasks, the payment will be added to their wallet after admin approval.
+- The user can request a withdrawal of the accumulated amount in their wallet.
+- New options to be added to the CSC center dashboard include:
+    - Wallet
+    - Transaction
+    - Payment Information (to be entered by the CSC center user and approved by the admin)
+    - Task Assignment
+    - Old Documentations (for leads assigned with user registration details)
+    - User Information
+    - Support
+    - Chat
+    - WhatsApp (integrated)
+- For the user dashboard:
+    - Users will see the packages they have applied for.
+    - After package application, users will be automatically directed to KYC verification.
+    - During KYC, users will need to upload mandatory documents.
+    - Admins will approve these documents.
+    - The work module will then proceed based on the approved packages.
+    - Users can track their applied jobs.
+    - If a user applies for 10 packages and 2 are approved, they will have 8 remaining.
+    - If the admin or CSC center requires documents, they can request them via the chat option.
+    - Users will receive notifications on their dashboard regarding pending document requirements.
+- The chat functionality should be integrated across all dashboards (user, website front-end, admin, and CSC center).
+- Alternatively, a manual chat bot can be implemented, allowing interaction between admin and users, and CSC center users and admins, or CSC center users and end-users.
