@@ -29,7 +29,7 @@ Preferred communication style: Simple, everyday language.
 ### Data Storage
 - **Database**: MongoDB with Mongoose ODM
 - **Connection**: Singleton pattern with connection caching
-- **Models**: User, Job, Application, CSCCenter, Lead, Package, UserPackage, SupportTicket, Referral, UserDocument
+- **Models**: User, Job, Application, CSCCenter, Lead, Package, UserPackage, SupportTicket, Referral, UserDocument, CSCWallet, WalletTransaction, ChatMessage
 
 ### Key Design Patterns
 - **Dual Layout System**: Separate layouts for user dashboard (`DashboardLayout`) and admin panel (`AdminLayout`)
@@ -39,8 +39,19 @@ Preferred communication style: Simple, everyday language.
 
 ### Route Structure
 - Public routes: `/`, `/govt-jobs`, `/pricing`, `/login`, `/register`, etc.
-- User dashboard: `/dashboard/*` - applications, documents, jobs, packages, support
-- Admin panel: `/admin/*` - users, CSC centers, leads, jobs, payments, support tickets
+- User dashboard: `/dashboard/*` - applications, documents, jobs, packages, support, chat
+- Admin panel: `/admin/*` - users, CSC centers, leads, jobs, payments, documents, withdrawals, support tickets
+- CSC portal: `/csc/*` - leads, wallet, transactions, tasks, chat, user management
+
+### Admin Approval Workflows
+- **Document Verification**: Admins can view, approve, or reject user-uploaded documents with rejection reasons
+- **Payment Management**: View all payment transactions with revenue analytics and filtering
+- **Wallet Withdrawals**: Approve or reject CSC center withdrawal requests with automatic wallet balance refunds on rejection
+
+### CSC Center Features  
+- **Wallet System**: CSC centers have wallets with balance, earnings tracking, and withdrawal requests
+- **Task Assignment**: Admins can assign form-filling tasks to CSC centers with commission
+- **Chat System**: Cross-dashboard messaging between admins, CSC centers, users, and leads
 
 ## External Dependencies
 
