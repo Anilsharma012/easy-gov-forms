@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   Leaf,
   UserCheck,
+  MessageCircle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -66,6 +67,11 @@ const menuItems = [
     title: "Notifications",
     icon: Bell,
     url: "/dashboard/notifications",
+  },
+  {
+    title: "Chat with CSC",
+    icon: MessageCircle,
+    url: "/dashboard/chat",
   },
   {
     title: "Support & Tickets",

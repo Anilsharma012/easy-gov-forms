@@ -34,6 +34,7 @@ import Settings from "./pages/dashboard/Settings";
 import AvailableJobs from "./pages/dashboard/AvailableJobs";
 import JobApply from "./pages/dashboard/JobApply";
 import KYC from "./pages/dashboard/KYC";
+import Chat from "./pages/dashboard/Chat";
 
 // Admin
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -106,6 +107,7 @@ const App = () => (
             <Route path="documents" element={<Documents />} />
             <Route path="kyc" element={<KYC />} />
             <Route path="notifications" element={<Notifications />} />
+            <Route path="chat" element={<Chat />} />
             <Route path="support" element={<Support />} />
             <Route path="referrals" element={<Referrals />} />
             <Route path="settings" element={<Settings />} />

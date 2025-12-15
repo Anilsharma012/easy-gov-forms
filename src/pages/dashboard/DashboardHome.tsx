@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Package,
@@ -8,19 +9,49 @@ import {
   CheckCircle,
   TrendingUp,
   Calendar,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import {
-  mockUserPackages,
-  mockApplications,
-  mockJobs,
-  mockNotifications,
-} from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 
-const statusColors = {
+interface Application {
+  _id: string;
+  applicationId: string;
+  formName: string;
+  status: string;
+  createdAt: string;
+  jobId?: {
+    _id: string;
+    title: string;
+    department: string;
+    applicationDeadline: string;
+  };
+}
+
+interface UserPackage {
+  _id: string;
+  packageId: {
+    _id: string;
+    name: string;
+    totalForms: number;
+  };
+  status: string;
+  formsUsed: number;
+  purchaseDate: string;
+  expiryDate: string;
+}
+
+interface Job {
+  _id: string;
+  title: string;
+  department: string;
+  applicationDeadline: string;
+}
+
+const statusColors: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
   processing: "bg-info/10 text-info border-info/20",
   submitted: "bg-primary/10 text-primary border-primary/20",
@@ -29,27 +60,77 @@ const statusColors = {
 };
 
 export default function DashboardHome() {
-  const activePackage = mockUserPackages[0];
-  const packageProgress = activePackage
-    ? (activePackage.usedForms / activePackage.totalForms) * 100
-    : 0;
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [packages, setPackages] = useState<UserPackage[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
 
-  const upcomingDeadlines = mockJobs
-    .filter((job) => new Date(job.lastDate) > new Date())
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const [appsRes, packagesRes, jobsRes] = await Promise.all([
+        fetch("/api/user-applications/my-applications", { credentials: "include" }),
+        fetch("/api/user-packages/my-packages", { credentials: "include" }),
+        fetch("/api/jobs?limit=5", { credentials: "include" }),
+      ]);
+
+      if (appsRes.ok) {
+        const data = await appsRes.json();
+        setApplications(data.applications || []);
+      }
+
+      if (packagesRes.ok) {
+        const data = await packagesRes.json();
+        setPackages(data.packages || []);
+      }
+
+      if (jobsRes.ok) {
+        const data = await jobsRes.json();
+        setJobs(data.jobs || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const activePackage = packages.find(p => p.status === "active");
+  const totalForms = activePackage?.packageId?.totalForms || 0;
+  const usedForms = activePackage?.formsUsed || 0;
+  const remainingForms = totalForms - usedForms;
+  const packageProgress = totalForms > 0 ? (usedForms / totalForms) * 100 : 0;
+
+  const upcomingDeadlines = jobs
+    .filter((job) => new Date(job.applicationDeadline) > new Date())
     .slice(0, 3);
 
-  const unreadNotifications = mockNotifications.filter((n) => !n.read).slice(0, 3);
+  const processingCount = applications.filter((a) => a.status === "processing").length;
+  const completedCount = applications.filter((a) => a.status === "completed").length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Welcome back, Rahul!</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          Welcome back, {user?.name || "User"}!
+        </h1>
         <p className="text-muted-foreground">
           Here's an overview of your applications and packages.
         </p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="card-hover">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -58,10 +139,10 @@ export default function DashboardHome() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {activePackage?.remainingForms || 0}
+              {remainingForms}
             </div>
             <p className="text-xs text-muted-foreground">
-              forms remaining of {activePackage?.totalForms || 0}
+              forms remaining of {totalForms}
             </p>
             <Progress value={packageProgress} className="mt-2 h-2" />
           </CardContent>
@@ -73,9 +154,9 @@ export default function DashboardHome() {
             <FileText className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockApplications.length}</div>
+            <div className="text-2xl font-bold">{applications.length}</div>
             <p className="text-xs text-muted-foreground">
-              <span className="text-success">+2</span> this month
+              submitted applications
             </p>
           </CardContent>
         </Card>
@@ -86,9 +167,7 @@ export default function DashboardHome() {
             <Clock className="h-4 w-4 text-info" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {mockApplications.filter((a) => a.status === "processing").length}
-            </div>
+            <div className="text-2xl font-bold">{processingCount}</div>
             <p className="text-xs text-muted-foreground">being processed</p>
           </CardContent>
         </Card>
@@ -99,16 +178,13 @@ export default function DashboardHome() {
             <CheckCircle className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {mockApplications.filter((a) => a.status === "completed").length}
-            </div>
+            <div className="text-2xl font-bold">{completedCount}</div>
             <p className="text-xs text-muted-foreground">successfully submitted</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Applications */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Applications</CardTitle>
@@ -119,29 +195,36 @@ export default function DashboardHome() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            {mockApplications.slice(0, 3).map((app) => (
-              <div
-                key={app.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-              >
-                <div className="space-y-1">
-                  <p className="font-medium text-sm line-clamp-1">{app.jobTitle}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {app.applicationId}
-                  </p>
-                </div>
-                <Badge
-                  variant="outline"
-                  className={statusColors[app.status]}
+            {applications.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No applications yet
+              </p>
+            ) : (
+              applications.slice(0, 3).map((app) => (
+                <div
+                  key={app._id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                 >
-                  {app.status}
-                </Badge>
-              </div>
-            ))}
+                  <div className="space-y-1">
+                    <p className="font-medium text-sm line-clamp-1">
+                      {app.jobId?.title || app.formName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {app.applicationId}
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={statusColors[app.status] || "bg-muted"}
+                  >
+                    {app.status}
+                  </Badge>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
 
-        {/* Upcoming Deadlines */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Upcoming Deadlines</CardTitle>
@@ -152,28 +235,33 @@ export default function DashboardHome() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            {upcomingDeadlines.map((job) => (
-              <div
-                key={job.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-              >
-                <div className="space-y-1">
-                  <p className="font-medium text-sm line-clamp-1">{job.title}</p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    Last Date: {new Date(job.lastDate).toLocaleDateString()}
+            {upcomingDeadlines.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No upcoming deadlines
+              </p>
+            ) : (
+              upcomingDeadlines.map((job) => (
+                <div
+                  key={job._id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium text-sm line-clamp-1">{job.title}</p>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      Last Date: {new Date(job.applicationDeadline).toLocaleDateString()}
+                    </div>
                   </div>
+                  <Button size="sm" asChild>
+                    <Link to={`/job/${job._id}`}>Apply</Link>
+                  </Button>
                 </div>
-                <Button size="sm" asChild>
-                  <Link to={`/job/${job.id}`}>Apply</Link>
-                </Button>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions */}
       <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>

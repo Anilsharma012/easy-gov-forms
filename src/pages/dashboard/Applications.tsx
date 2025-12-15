@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -7,6 +7,7 @@ import {
   Eye,
   TicketCheck,
   Calendar,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,7 +38,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import { mockApplications, Application } from "@/data/mockData";
+interface Application {
+  _id: string;
+  applicationId: string;
+  formName: string;
+  status: string;
+  createdAt: string;
+  packageUsed: string;
+  jobId?: {
+    _id: string;
+    title: string;
+    department: string;
+    applicationDeadline: string;
+  };
+}
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
@@ -58,100 +72,43 @@ function downloadBlob(blob: Blob, filename: string) {
   document.body.removeChild(a);
 }
 
-function buildReceiptHtml(app: Application) {
-  const subDate = new Date(app.submissionDate).toLocaleDateString();
-  const lastDate = new Date(app.lastDate).toLocaleDateString();
-
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Receipt - ${app.applicationId}</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-    .wrap { max-width: 720px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; }
-    h1 { margin: 0 0 8px; font-size: 20px; }
-    .muted { color: #6b7280; margin: 0 0 16px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .box { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
-    .label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
-    .value { font-weight: 600; }
-    .full { grid-column: 1 / -1; }
-    .footer { margin-top: 18px; font-size: 12px; color: #6b7280; }
-    .btns { margin-top: 16px; display: flex; gap: 10px; }
-    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; }
-    button:hover { background: #f9fafb; }
-    @media print { .btns { display: none; } .wrap { border: none; } }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1>Easy Gov Forms - Receipt</h1>
-    <p class="muted">Application receipt (demo receipt generated from your dashboard data).</p>
-
-    <div class="grid">
-      <div class="box">
-        <div class="label">Application ID</div>
-        <div class="value">${app.applicationId}</div>
-      </div>
-
-      <div class="box">
-        <div class="label">Status</div>
-        <div class="value">${app.status}</div>
-      </div>
-
-      <div class="box full">
-        <div class="label">Job Title</div>
-        <div class="value">${app.jobTitle}</div>
-      </div>
-
-      <div class="box">
-        <div class="label">Department</div>
-        <div class="value">${app.department}</div>
-      </div>
-
-      <div class="box">
-        <div class="label">Package Used</div>
-        <div class="value">${app.packageUsed}</div>
-      </div>
-
-      <div class="box">
-        <div class="label">Submission Date</div>
-        <div class="value">${subDate}</div>
-      </div>
-
-      <div class="box">
-        <div class="label">Last Date</div>
-        <div class="value">${lastDate}</div>
-      </div>
-    </div>
-
-    <div class="btns">
-      <button onclick="window.print()">Print / Save as PDF</button>
-    </div>
-
-    <div class="footer">
-      Note: This receipt is generated on client-side (mock/demo). If you want server-verified PDF, we’ll connect it to backend API later.
-    </div>
-  </div>
-</body>
-</html>`;
-}
 
 export default function Applications() {
   const navigate = useNavigate();
 
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
+  useEffect(() => {
+    fetchApplications();
+  }, []);
+
+  const fetchApplications = async () => {
+    try {
+      const response = await fetch("/api/user-applications/my-applications", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setApplications(data.applications || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch applications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredApplications = useMemo(() => {
-    return mockApplications.filter((app) => {
+    return applications.filter((app) => {
+      const jobTitle = app.jobId?.title || app.formName || "";
       const matchesSearch =
-        app.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.applicationId.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus =
@@ -159,7 +116,7 @@ export default function Applications() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [searchTerm, statusFilter]);
+  }, [applications, searchTerm, statusFilter]);
 
   const openDetails = (app: Application) => {
     setSelectedApp(app);
@@ -168,7 +125,38 @@ export default function Applications() {
 
   const handleDownloadReceipt = (app: Application) => {
     try {
-      const html = buildReceiptHtml(app);
+      const jobTitle = app.jobId?.title || app.formName || "Application";
+      const department = app.jobId?.department || "N/A";
+      const deadline = app.jobId?.applicationDeadline || app.createdAt;
+      const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Receipt - ${app.applicationId}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; }
+    .wrap { max-width: 720px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; }
+    h1 { margin: 0 0 16px; font-size: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .box { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+    .label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+    .value { font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Easy Gov Forms - Receipt</h1>
+    <div class="grid">
+      <div class="box"><div class="label">Application ID</div><div class="value">${app.applicationId}</div></div>
+      <div class="box"><div class="label">Status</div><div class="value">${app.status}</div></div>
+      <div class="box"><div class="label">Job Title</div><div class="value">${jobTitle}</div></div>
+      <div class="box"><div class="label">Department</div><div class="value">${department}</div></div>
+      <div class="box"><div class="label">Package</div><div class="value">${app.packageUsed || "N/A"}</div></div>
+      <div class="box"><div class="label">Date</div><div class="value">${new Date(app.createdAt).toLocaleDateString()}</div></div>
+    </div>
+  </div>
+</body>
+</html>`;
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       downloadBlob(blob, `receipt-${app.applicationId}.html`);
       toast.success("Receipt downloaded");
@@ -179,16 +167,24 @@ export default function Applications() {
   };
 
   const handleRaiseTicket = (app: Application) => {
-    // ✅ Working action: redirect user to Support page with prefilled query params
+    const jobTitle = app.jobId?.title || app.formName || "Application";
     const qs = new URLSearchParams({
       appId: app.applicationId,
-      job: app.jobTitle,
+      job: jobTitle,
       status: app.status,
     }).toString();
 
     toast.success("Opening Support & Tickets...");
     navigate(`/dashboard/support?${qs}`);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -251,10 +247,10 @@ export default function Applications() {
 
               <TableBody>
                 {filteredApplications.map((app) => (
-                  <TableRow key={app.id}>
+                  <TableRow key={app._id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium line-clamp-1">{app.jobTitle}</p>
+                        <p className="font-medium line-clamp-1">{app.jobId?.title || app.formName}</p>
                         <p className="text-xs text-muted-foreground md:hidden">
                           {app.applicationId}
                         </p>
@@ -266,11 +262,11 @@ export default function Applications() {
                     </TableCell>
 
                     <TableCell className="hidden lg:table-cell">
-                      {new Date(app.submissionDate).toLocaleDateString()}
+                      {new Date(app.createdAt).toLocaleDateString()}
                     </TableCell>
 
                     <TableCell className="hidden lg:table-cell">
-                      {new Date(app.lastDate).toLocaleDateString()}
+                      {app.jobId?.applicationDeadline ? new Date(app.jobId.applicationDeadline).toLocaleDateString() : "N/A"}
                     </TableCell>
 
                     <TableCell>
@@ -352,27 +348,27 @@ export default function Applications() {
 
                 <div className="col-span-2">
                   <p className="text-sm text-muted-foreground">Job Title</p>
-                  <p className="font-medium">{selectedApp.jobTitle}</p>
+                  <p className="font-medium">{selectedApp.jobId?.title || selectedApp.formName}</p>
                 </div>
 
                 <div>
                   <p className="text-sm text-muted-foreground">Department</p>
-                  <p>{selectedApp.department}</p>
+                  <p>{selectedApp.jobId?.department || "N/A"}</p>
                 </div>
 
                 <div>
                   <p className="text-sm text-muted-foreground">Package Used</p>
-                  <p>{selectedApp.packageUsed}</p>
+                  <p>{selectedApp.packageUsed || "N/A"}</p>
                 </div>
 
                 <div>
                   <p className="text-sm text-muted-foreground">Submission Date</p>
-                  <p>{new Date(selectedApp.submissionDate).toLocaleDateString()}</p>
+                  <p>{new Date(selectedApp.createdAt).toLocaleDateString()}</p>
                 </div>
 
                 <div>
                   <p className="text-sm text-muted-foreground">Last Date</p>
-                  <p>{new Date(selectedApp.lastDate).toLocaleDateString()}</p>
+                  <p>{selectedApp.jobId?.applicationDeadline ? new Date(selectedApp.jobId.applicationDeadline).toLocaleDateString() : "N/A"}</p>
                 </div>
               </div>
 
