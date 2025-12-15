@@ -91,7 +91,7 @@ router.post('/create-order', verifyToken, async (req: AuthRequest, res: Response
     const order = await razorpay.orders.create({
       amount: serverSidePrice,
       currency: 'INR',
-      receipt: `order_${Date.now()}_${userId}`,
+      receipt: `ord_${Date.now()}`,
       notes: {
         packageId: pkg._id.toString(),
         userId: userId,
