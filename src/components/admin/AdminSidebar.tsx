@@ -15,6 +15,8 @@ import {
   Settings,
   LogOut,
   Shield,
+  FileCheck,
+  Wallet,
 } from "lucide-react";
 import {
   Sidebar,
@@ -52,6 +54,8 @@ const menuItems = [
     group: "Operations",
     items: [
       { title: "Payments", icon: CreditCard, url: "/admin/payments" },
+      { title: "Documents", icon: FileCheck, url: "/admin/documents" },
+      { title: "Withdrawals", icon: Wallet, url: "/admin/withdrawals" },
       { title: "Support Tickets", icon: LifeBuoy, url: "/admin/support" },
       { title: "Content", icon: FileText, url: "/admin/content" },
       { title: "Legal & Policies", icon: Scale, url: "/admin/legal" },

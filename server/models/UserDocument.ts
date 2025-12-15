@@ -12,6 +12,8 @@ export interface IUserDocument extends Document {
   status: 'pending' | 'verified' | 'rejected';
   uploadedAt: Date;
   verifiedAt?: Date;
+  rejectionReason?: string;
+  rejectedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +30,8 @@ const userDocumentSchema = new Schema<IUserDocument>({
   status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
   uploadedAt: { type: Date, default: Date.now },
   verifiedAt: { type: Date },
+  rejectionReason: { type: String },
+  rejectedAt: { type: Date },
 }, { timestamps: true });
 
 export const UserDocument = mongoose.model<IUserDocument>('UserDocument', userDocumentSchema);

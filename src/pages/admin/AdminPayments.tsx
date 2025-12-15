@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Download,
@@ -6,9 +6,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  RefreshCw,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -27,41 +26,104 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { mockAdminPayments, adminStats } from "@/data/adminMockData";
+
+interface Payment {
+  _id: string;
+  userId: {
+    _id: string;
+    name: string;
+    email: string;
+    phone?: string;
+  };
+  packageId: {
+    _id: string;
+    name: string;
+  };
+  packageName: string;
+  amount: number;
+  paymentId: string;
+  orderId: string;
+  status: 'active' | 'expired';
+  purchasedAt: string;
+  createdAt: string;
+}
+
+interface Stats {
+  totalPayments: number;
+  activePackages: number;
+  expiredPackages: number;
+  totalRevenue: number;
+  monthlyRevenue: number;
+}
 
 const statusColors = {
-  success: "bg-success/10 text-success border-success/20",
-  failed: "bg-destructive/10 text-destructive border-destructive/20",
-  pending: "bg-warning/10 text-warning border-warning/20",
-  refunded: "bg-info/10 text-info border-info/20",
+  active: "bg-success/10 text-success border-success/20",
+  expired: "bg-muted/10 text-muted-foreground border-muted/20",
 };
 
 const statusIcons = {
-  success: CheckCircle,
-  failed: XCircle,
-  pending: Clock,
-  refunded: RefreshCw,
+  active: CheckCircle,
+  expired: Clock,
 };
 
 export default function AdminPayments() {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [stats, setStats] = useState<Stats>({ 
+    totalPayments: 0, 
+    activePackages: 0, 
+    expiredPackages: 0, 
+    totalRevenue: 0, 
+    monthlyRevenue: 0 
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [methodFilter, setMethodFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
-  const filteredPayments = mockAdminPayments.filter((payment) => {
+  const fetchPayments = async () => {
+    try {
+      const response = await fetch(`/api/admin/payments?status=${statusFilter}`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setPayments(data.payments || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch payments:', error);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/admin/payments/stats', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPayments();
+    fetchStats();
+  }, [statusFilter]);
+
+  const filteredPayments = payments.filter((payment) => {
     const matchesSearch =
-      payment.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.paymentId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || payment.status === statusFilter;
-    const matchesMethod =
-      methodFilter === "all" || payment.method === methodFilter;
-    return matchesSearch && matchesStatus && matchesMethod;
+      payment.userId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.paymentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.orderId?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
-  const totalAmount = filteredPayments
-    .filter((p) => p.status === "success")
-    .reduce((acc, p) => acc + p.amount, 0);
+  const totalAmount = filteredPayments.reduce((acc, p) => acc + p.amount, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -80,7 +142,6 @@ export default function AdminPayments() {
         </Button>
       </div>
 
-      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
@@ -89,7 +150,7 @@ export default function AdminPayments() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                ₹{adminStats.totalRevenue.toLocaleString()}
+                ₹{stats.totalRevenue.toLocaleString()}
               </p>
               <p className="text-sm text-muted-foreground">Total Revenue</p>
             </div>
@@ -102,7 +163,7 @@ export default function AdminPayments() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                ₹{adminStats.monthlyRevenue.toLocaleString()}
+                ₹{stats.monthlyRevenue.toLocaleString()}
               </p>
               <p className="text-sm text-muted-foreground">This Month</p>
             </div>
@@ -114,23 +175,19 @@ export default function AdminPayments() {
               <CheckCircle className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {mockAdminPayments.filter((p) => p.status === "success").length}
-              </p>
-              <p className="text-sm text-muted-foreground">Successful</p>
+              <p className="text-2xl font-bold">{stats.activePackages}</p>
+              <p className="text-sm text-muted-foreground">Active Packages</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-              <XCircle className="h-5 w-5 text-destructive" />
+            <div className="h-10 w-10 rounded-lg bg-muted/10 flex items-center justify-center">
+              <XCircle className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {mockAdminPayments.filter((p) => p.status === "failed").length}
-              </p>
-              <p className="text-sm text-muted-foreground">Failed</p>
+              <p className="text-2xl font-bold">{stats.expiredPackages}</p>
+              <p className="text-sm text-muted-foreground">Expired</p>
             </div>
           </CardContent>
         </Card>
@@ -142,7 +199,7 @@ export default function AdminPayments() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name or payment ID..."
+                placeholder="Search by name, email, or payment ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
@@ -154,22 +211,8 @@ export default function AdminPayments() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="success">Success</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="refunded">Refunded</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={methodFilter} onValueChange={setMethodFilter}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="Method" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Methods</SelectItem>
-                <SelectItem value="upi">UPI</SelectItem>
-                <SelectItem value="card">Card</SelectItem>
-                <SelectItem value="netbanking">Net Banking</SelectItem>
-                <SelectItem value="wallet">Wallet</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -182,45 +225,60 @@ export default function AdminPayments() {
                   <TableHead>Payment ID</TableHead>
                   <TableHead>User</TableHead>
                   <TableHead className="hidden md:table-cell">Package</TableHead>
-                  <TableHead className="hidden lg:table-cell">Method</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden lg:table-cell">Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPayments.map((payment) => {
-                  const Icon = statusIcons[payment.status];
-                  return (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-mono text-sm">
-                        {payment.paymentId}
-                      </TableCell>
-                      <TableCell>{payment.userName}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {payment.packageName}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell uppercase">
-                        {payment.method}
-                      </TableCell>
-                      <TableCell className="font-bold">
-                        ₹{payment.amount}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={statusColors[payment.status]}
-                        >
-                          <Icon className="h-3 w-3 mr-1" />
-                          {payment.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        {new Date(payment.createdAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      Loading payments...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredPayments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No payments found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredPayments.map((payment) => {
+                    const Icon = statusIcons[payment.status];
+                    return (
+                      <TableRow key={payment._id}>
+                        <TableCell className="font-mono text-sm">
+                          {payment.paymentId}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{payment.userId?.name || 'Unknown'}</p>
+                            <p className="text-sm text-muted-foreground">{payment.userId?.email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {payment.packageName}
+                        </TableCell>
+                        <TableCell className="font-bold">
+                          ₹{payment.amount.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={statusColors[payment.status]}
+                          >
+                            <Icon className="h-3 w-3 mr-1" />
+                            {payment.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {new Date(payment.purchasedAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </div>
@@ -231,7 +289,7 @@ export default function AdminPayments() {
                 Showing {filteredPayments.length} transactions
               </span>
               <span className="font-bold">
-                Total (Success): ₹{totalAmount.toLocaleString()}
+                Total: ₹{totalAmount.toLocaleString()}
               </span>
             </div>
           )}
