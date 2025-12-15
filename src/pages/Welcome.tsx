@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,8 @@ import { FileText, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2, Users, Bri
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import Ballpit from "@/components/Ballpit";
+
+const BALLPIT_COLORS = [0x22c55e, 0x16a34a, 0x15803d, 0x166534, 0x4ade80, 0x86efac, 0x10b981];
 
 const Welcome = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +49,7 @@ const Welcome = () => {
       {/* 3D Ballpit Background */}
       <Ballpit 
         count={60} 
-        colors={[0x22c55e, 0x16a34a, 0x15803d, 0x166534, 0x4ade80, 0x86efac, 0x10b981]}
+        colors={BALLPIT_COLORS}
         minSize={0.4}
         maxSize={1.2}
         gravity={0.3}
