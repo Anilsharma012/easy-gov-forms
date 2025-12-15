@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LifeBuoy,
   Plus,
@@ -9,6 +9,7 @@ import {
   Send,
   Phone,
   Mail,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,9 +34,25 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { mockSupportTickets, SupportTicket } from "@/data/mockData";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+interface Message {
+  sender: "user" | "support";
+  message: string;
+  timestamp: string;
+}
+
+interface SupportTicket {
+  _id: string;
+  subject: string;
+  category: "payment" | "form" | "technical" | "query";
+  status: "open" | "in-progress" | "resolved" | "closed";
+  priority: "low" | "medium" | "high";
+  messages: Message[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 const statusColors = {
   open: "bg-info/10 text-info border-info/20",
@@ -52,56 +69,108 @@ const statusIcons = {
 };
 
 export default function Support() {
-  const [tickets, setTickets] = useState(mockSupportTickets);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const handleCreateTicket = () => {
-    toast.success("Ticket created successfully!");
-    setCreateDialogOpen(false);
+  const [newTicket, setNewTicket] = useState({
+    subject: "",
+    category: "",
+    message: "",
+  });
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const fetchTickets = async () => {
+    try {
+      const response = await fetch("/api/support/my-tickets", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTickets(data.tickets || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch tickets:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSendMessage = () => {
+  const handleCreateTicket = async () => {
+    if (!newTicket.subject || !newTicket.category || !newTicket.message) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const response = await fetch("/api/support/create-ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(newTicket),
+      });
+
+      if (response.ok) {
+        toast.success("Ticket created successfully!");
+        setCreateDialogOpen(false);
+        setNewTicket({ subject: "", category: "", message: "" });
+        fetchTickets();
+      } else {
+        const data = await response.json();
+        toast.error(data.message || "Failed to create ticket");
+      }
+    } catch (error) {
+      toast.error("Failed to create ticket");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedTicket) return;
 
-    setTickets((prev) =>
-      prev.map((t) =>
-        t.id === selectedTicket.id
-          ? {
-              ...t,
-              messages: [
-                ...t.messages,
-                {
-                  sender: "user" as const,
-                  message: newMessage,
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            }
-          : t
-      )
-    );
+    setSending(true);
+    try {
+      const response = await fetch(`/api/support/${selectedTicket._id}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ message: newMessage }),
+      });
 
-    setSelectedTicket((prev) =>
-      prev
-        ? {
-            ...prev,
-            messages: [
-              ...prev.messages,
-              {
-                sender: "user" as const,
-                message: newMessage,
-                timestamp: new Date().toISOString(),
-              },
-            ],
-          }
-        : null
-    );
-
-    setNewMessage("");
-    toast.success("Message sent!");
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedTicket(data.ticket);
+        setTickets((prev) =>
+          prev.map((t) => (t._id === data.ticket._id ? data.ticket : t))
+        );
+        setNewMessage("");
+        toast.success("Message sent!");
+      } else {
+        toast.error("Failed to send message");
+      }
+    } catch (error) {
+      toast.error("Failed to send message");
+    } finally {
+      setSending(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -128,8 +197,13 @@ export default function Support() {
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select>
+                <Label htmlFor="category">Category *</Label>
+                <Select
+                  value={newTicket.category}
+                  onValueChange={(value) =>
+                    setNewTicket({ ...newTicket, category: value })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -142,15 +216,26 @@ export default function Support() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Input id="subject" placeholder="Brief description of your issue" />
+                <Label htmlFor="subject">Subject *</Label>
+                <Input
+                  id="subject"
+                  placeholder="Brief description of your issue"
+                  value={newTicket.subject}
+                  onChange={(e) =>
+                    setNewTicket({ ...newTicket, subject: e.target.value })
+                  }
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="message">Message</Label>
+                <Label htmlFor="message">Message *</Label>
                 <Textarea
                   id="message"
                   placeholder="Describe your issue in detail..."
                   rows={4}
+                  value={newTicket.message}
+                  onChange={(e) =>
+                    setNewTicket({ ...newTicket, message: e.target.value })
+                  }
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -160,14 +245,16 @@ export default function Support() {
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleCreateTicket}>Create Ticket</Button>
+                <Button onClick={handleCreateTicket} disabled={creating}>
+                  {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Create Ticket
+                </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Quick Contact */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="bg-gradient-to-r from-primary/10 to-accent">
           <CardContent className="p-6 flex items-center gap-4">
@@ -178,7 +265,11 @@ export default function Support() {
               <p className="font-medium">WhatsApp Support</p>
               <p className="text-sm text-muted-foreground">+91 98765 43210</p>
             </div>
-            <Button variant="outline" className="ml-auto">
+            <Button
+              variant="outline"
+              className="ml-auto"
+              onClick={() => window.open("https://wa.me/919876543210", "_blank")}
+            >
               Chat Now
             </Button>
           </CardContent>
@@ -192,16 +283,18 @@ export default function Support() {
               <p className="font-medium">Email Support</p>
               <p className="text-sm text-muted-foreground">support@easygovforms.com</p>
             </div>
-            <Button variant="outline" className="ml-auto">
+            <Button
+              variant="outline"
+              className="ml-auto"
+              onClick={() => window.open("mailto:support@easygovforms.com", "_blank")}
+            >
               Send Email
             </Button>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tickets */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Ticket List */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -224,7 +317,7 @@ export default function Support() {
                     : tickets.filter((t) =>
                         tab === "resolved"
                           ? t.status === "resolved" || t.status === "closed"
-                          : t.status === tab || t.status === "in-progress"
+                          : t.status === "open" || t.status === "in-progress"
                       );
 
                 return (
@@ -238,10 +331,10 @@ export default function Support() {
                         const Icon = statusIcons[ticket.status];
                         return (
                           <div
-                            key={ticket.id}
+                            key={ticket._id}
                             className={cn(
                               "p-4 rounded-lg border cursor-pointer transition-colors",
-                              selectedTicket?.id === ticket.id
+                              selectedTicket?._id === ticket._id
                                 ? "border-primary bg-primary/5"
                                 : "hover:bg-muted/50"
                             )}
@@ -278,7 +371,6 @@ export default function Support() {
           </CardContent>
         </Card>
 
-        {/* Ticket Detail / Chat */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -347,11 +439,18 @@ export default function Support() {
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSendMessage();
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
                       }}
                     />
-                    <Button onClick={handleSendMessage}>
-                      <Send className="h-4 w-4" />
+                    <Button onClick={handleSendMessage} disabled={sending}>
+                      {sending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 )}

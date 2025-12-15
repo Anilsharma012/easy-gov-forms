@@ -1,33 +1,104 @@
-import { Copy, Gift, Users, TrendingUp, Share2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Copy, Gift, Users, TrendingUp, Share2, Loader2, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { mockUserProfile } from "@/data/mockData";
 import { toast } from "sonner";
 
-const rewards = [
-  { level: 1, referrals: 3, reward: "₹100 discount on next package" },
-  { level: 2, referrals: 5, reward: "₹200 discount + 2 free forms" },
-  { level: 3, referrals: 10, reward: "₹500 discount + 5 free forms" },
-  { level: 4, referrals: 20, reward: "Free Starter Package" },
-];
+interface ReferralData {
+  referralCode: string;
+  referralCount: number;
+  rewardPoints: number;
+  referrals: Array<{
+    id: string;
+    referredUser: {
+      name: string;
+      email: string;
+      createdAt: string;
+    };
+    status: string;
+    rewardPoints: number;
+    completedAt?: string;
+    createdAt: string;
+  }>;
+}
+
+interface RewardsData {
+  rewards: Array<{
+    level: number;
+    referrals: number;
+    reward: string;
+  }>;
+  currentLevel: number;
+  nextReward: {
+    level: number;
+    referrals: number;
+    reward: string;
+  };
+}
 
 export default function Referrals() {
-  const referralLink = `https://easygovforms.com/ref/${mockUserProfile.referralCode}`;
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<ReferralData | null>(null);
+  const [rewardsData, setRewardsData] = useState<RewardsData | null>(null);
+  const [referralLink, setReferralLink] = useState("");
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [referralsRes, rewardsRes] = await Promise.all([
+        fetch("/api/referrals/my-referrals", { credentials: "include" }),
+        fetch("/api/referrals/rewards", { credentials: "include" }),
+      ]);
+
+      if (referralsRes.ok) {
+        const referralsData = await referralsRes.json();
+        setData(referralsData);
+        setReferralLink(`${window.location.origin}/register?ref=${referralsData.referralCode}`);
+      }
+
+      if (rewardsRes.ok) {
+        const rewards = await rewardsRes.json();
+        setRewardsData(rewards);
+      }
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+      toast.error("Failed to load referral data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard!");
   };
 
-  const currentLevel = rewards.findIndex(
-    (r) => mockUserProfile.referrals < r.referrals
-  );
-  const nextReward = rewards[currentLevel] || rewards[rewards.length - 1];
-  const progressToNextLevel =
-    (mockUserProfile.referrals / nextReward.referrals) * 100;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const rewards = rewardsData?.rewards || [
+    { level: 1, referrals: 3, reward: "₹100 discount on next package" },
+    { level: 2, referrals: 5, reward: "₹200 discount + 2 free forms" },
+    { level: 3, referrals: 10, reward: "₹500 discount + 5 free forms" },
+    { level: 4, referrals: 20, reward: "Free Starter Package" },
+  ];
+
+  const currentLevel = rewardsData?.currentLevel || 0;
+  const nextReward = rewardsData?.nextReward || rewards[0];
+  const progressToNextLevel = nextReward
+    ? ((data?.referralCount || 0) / nextReward.referrals) * 100
+    : 100;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -38,7 +109,6 @@ export default function Referrals() {
         </p>
       </div>
 
-      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="bg-gradient-to-br from-primary/10 to-accent">
           <CardContent className="p-6">
@@ -47,7 +117,7 @@ export default function Referrals() {
                 <Users className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <p className="text-3xl font-bold">{mockUserProfile.referrals}</p>
+                <p className="text-3xl font-bold">{data?.referralCount || 0}</p>
                 <p className="text-sm text-muted-foreground">Total Referrals</p>
               </div>
             </div>
@@ -60,7 +130,7 @@ export default function Referrals() {
                 <Gift className="h-6 w-6 text-success" />
               </div>
               <div>
-                <p className="text-3xl font-bold">{mockUserProfile.rewardPoints}</p>
+                <p className="text-3xl font-bold">{data?.rewardPoints || 0}</p>
                 <p className="text-sm text-muted-foreground">Reward Points</p>
               </div>
             </div>
@@ -81,7 +151,6 @@ export default function Referrals() {
         </Card>
       </div>
 
-      {/* Referral Code & Link */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -95,13 +164,13 @@ export default function Referrals() {
               <label className="text-sm font-medium">Referral Code</label>
               <div className="flex gap-2">
                 <Input
-                  value={mockUserProfile.referralCode}
+                  value={data?.referralCode || ""}
                   readOnly
                   className="font-mono text-lg font-bold"
                 />
                 <Button
                   variant="outline"
-                  onClick={() => copyToClipboard(mockUserProfile.referralCode)}
+                  onClick={() => copyToClipboard(data?.referralCode || "")}
                 >
                   <Copy className="h-4 w-4" />
                 </Button>
@@ -126,7 +195,7 @@ export default function Referrals() {
               className="flex-1"
               onClick={() =>
                 window.open(
-                  `https://wa.me/?text=Join Easy Gov Forms and get your government job applications done easily! Use my referral code: ${mockUserProfile.referralCode} ${referralLink}`,
+                  `https://wa.me/?text=Join Easy Gov Forms and get your government job applications done easily! Use my referral code: ${data?.referralCode} ${referralLink}`,
                   "_blank"
                 )
               }
@@ -144,7 +213,6 @@ export default function Referrals() {
         </CardContent>
       </Card>
 
-      {/* Progress to Next Level */}
       <Card>
         <CardHeader>
           <CardTitle>Progress to Next Reward</CardTitle>
@@ -153,20 +221,19 @@ export default function Referrals() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                {mockUserProfile.referrals} / {nextReward.referrals} referrals
+                {data?.referralCount || 0} / {nextReward?.referrals || 3} referrals
               </span>
-              <Badge variant="secondary">{nextReward.reward}</Badge>
+              <Badge variant="secondary">{nextReward?.reward}</Badge>
             </div>
-            <Progress value={progressToNextLevel} className="h-3" />
+            <Progress value={Math.min(progressToNextLevel, 100)} className="h-3" />
             <p className="text-sm text-muted-foreground">
-              {nextReward.referrals - mockUserProfile.referrals} more referrals to
-              unlock: <span className="text-primary font-medium">{nextReward.reward}</span>
+              {(nextReward?.referrals || 3) - (data?.referralCount || 0)} more referrals to
+              unlock: <span className="text-primary font-medium">{nextReward?.reward}</span>
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Reward Tiers */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -177,11 +244,11 @@ export default function Referrals() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {rewards.map((reward, index) => {
-              const isUnlocked = mockUserProfile.referrals >= reward.referrals;
+              const isUnlocked = (data?.referralCount || 0) >= reward.referrals;
               const isCurrent =
-                mockUserProfile.referrals >= reward.referrals &&
+                (data?.referralCount || 0) >= reward.referrals &&
                 (index === rewards.length - 1 ||
-                  mockUserProfile.referrals < rewards[index + 1].referrals);
+                  (data?.referralCount || 0) < rewards[index + 1].referrals);
 
               return (
                 <div
@@ -211,7 +278,41 @@ export default function Referrals() {
         </CardContent>
       </Card>
 
-      {/* How it works */}
+      {data?.referrals && data.referrals.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Referrals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {data.referrals.map((referral) => (
+                <div
+                  key={referral.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                >
+                  <div>
+                    <p className="font-medium">{referral.referredUser?.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Joined {new Date(referral.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {referral.status === "completed" ? (
+                      <Badge className="bg-success">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        +{referral.rewardPoints} points
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Pending</Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>How Referrals Work</CardTitle>

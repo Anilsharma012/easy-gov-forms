@@ -5,7 +5,10 @@ export interface IApplication extends Document {
   jobId?: mongoose.Types.ObjectId;
   formName: string;
   type: 'job' | 'scheme' | 'document';
-  status: 'pending' | 'submitted' | 'approved' | 'rejected';
+  status: 'pending' | 'processing' | 'submitted' | 'approved' | 'rejected' | 'completed';
+  applicationId?: string;
+  formData?: any;
+  packageUsed?: string;
   submittedAt?: Date;
   notes?: string;
   createdAt: Date;
@@ -17,7 +20,10 @@ const applicationSchema = new Schema<IApplication>({
   jobId: { type: Schema.Types.ObjectId, ref: 'Job' },
   formName: { type: String, required: true },
   type: { type: String, enum: ['job', 'scheme', 'document'], required: true },
-  status: { type: String, enum: ['pending', 'submitted', 'approved', 'rejected'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'processing', 'submitted', 'approved', 'rejected', 'completed'], default: 'pending' },
+  applicationId: { type: String },
+  formData: { type: Schema.Types.Mixed },
+  packageUsed: { type: String },
   submittedAt: { type: Date },
   notes: { type: String },
 }, { timestamps: true });

@@ -14,9 +14,19 @@ export interface IUser extends Document {
   kycVerified: boolean;
   activePackage?: string;
   totalApplications: number;
+  referralCode: string;
+  referredBy?: string;
+  referralCount: number;
+  rewardPoints: number;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
+function generateReferralCode(name: string): string {
+  const namePart = name.replace(/\s+/g, '').toUpperCase().slice(0, 6);
+  const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `${namePart}${randomPart}`;
 }
 
 const userSchema = new Schema<IUser>({
@@ -70,17 +80,40 @@ const userSchema = new Schema<IUser>({
     type: Number,
     default: 0,
   },
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  referredBy: {
+    type: String,
+  },
+  referralCount: {
+    type: Number,
+    default: 0,
+  },
+  rewardPoints: {
+    type: Number,
+    default: 0,
+  },
 }, {
   timestamps: true,
 });
 
 userSchema.pre('save', async function() {
   if (!this.isModified('password')) {
+    if (!this.referralCode) {
+      this.referralCode = generateReferralCode(this.name);
+    }
     return;
   }
   
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  
+  if (!this.referralCode) {
+    this.referralCode = generateReferralCode(this.name);
+  }
 });
 
 userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {

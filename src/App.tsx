@@ -31,6 +31,7 @@ import Support from "./pages/dashboard/Support";
 import Referrals from "./pages/dashboard/Referrals";
 import Settings from "./pages/dashboard/Settings";
 import AvailableJobs from "./pages/dashboard/AvailableJobs";
+import JobApply from "./pages/dashboard/JobApply";
 
 // Admin
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -79,6 +80,7 @@ const App = () => (
             <Route index element={<DashboardHome />} />
             <Route path="applications" element={<Applications />} />
             <Route path="jobs" element={<AvailableJobs />} />
+            <Route path="jobs/apply/:id" element={<JobApply />} />
             <Route path="packages" element={<Packages />} />
             <Route path="documents" element={<Documents />} />
             <Route path="notifications" element={<Notifications />} />

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Search,
   Filter,
@@ -8,6 +8,9 @@ import {
   Users,
   Briefcase,
   ArrowRight,
+  Loader2,
+  X,
+  IndianRupee,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,16 +23,101 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { mockJobs, jobCategories, states, educationLevels } from "@/data/mockData";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
+interface Job {
+  _id: string;
+  title: string;
+  department: string;
+  category: string;
+  location: string;
+  lastDate: string;
+  eligibility: string;
+  fees: {
+    general: number;
+    obc: number;
+    sc: number;
+    st: number;
+  };
+  vacancies: number;
+  description: string;
+  qualifications: string[];
+  ageLimit: string;
+  salary: string;
+}
+
+const jobCategories = [
+  "All Categories",
+  "Central Government",
+  "State Government",
+  "Banking",
+  "Railways",
+  "Defence",
+  "PSU",
+  "Teaching",
+];
+
+const states = [
+  "All States",
+  "All India",
+  "Uttar Pradesh",
+  "Maharashtra",
+  "Delhi",
+  "Gujarat",
+  "Rajasthan",
+  "Bihar",
+  "Madhya Pradesh",
+  "Karnataka",
+  "Tamil Nadu",
+];
+
+const educationLevels = [
+  "All Levels",
+  "10th Pass",
+  "12th Pass",
+  "Graduate",
+  "Post Graduate",
+];
+
 export default function AvailableJobs() {
+  const navigate = useNavigate();
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [category, setCategory] = useState("All Categories");
   const [state, setState] = useState("All States");
   const [education, setEducation] = useState("All Levels");
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
-  const filteredJobs = mockJobs.filter((job) => {
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  const fetchJobs = async () => {
+    try {
+      const response = await fetch("/api/jobs");
+      if (response.ok) {
+        const data = await response.json();
+        setJobs(data.jobs || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch jobs:", error);
+      toast.error("Failed to load jobs");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredJobs = jobs.filter((job) => {
     const matchesSearch =
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.department.toLowerCase().includes(searchTerm.toLowerCase());
@@ -42,9 +130,22 @@ export default function AvailableJobs() {
     return matchesSearch && matchesCategory && matchesState;
   });
 
-  const handleApply = (jobTitle: string) => {
-    toast.success(`Starting application for ${jobTitle}...`);
+  const handleViewDetails = (job: Job) => {
+    setSelectedJob(job);
+    setDetailsOpen(true);
   };
+
+  const handleApply = (job: Job) => {
+    navigate(`/dashboard/jobs/apply/${job._id}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -55,7 +156,6 @@ export default function AvailableJobs() {
         </p>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardContent className="p-4">
           <div className="grid gap-4 md:grid-cols-4">
@@ -108,7 +208,6 @@ export default function AvailableJobs() {
         </CardContent>
       </Card>
 
-      {/* Results Count */}
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground">
           Showing <span className="font-medium text-foreground">{filteredJobs.length}</span> jobs
@@ -121,10 +220,9 @@ export default function AvailableJobs() {
         </Badge>
       </div>
 
-      {/* Job Cards */}
       <div className="grid gap-4 md:grid-cols-2">
         {filteredJobs.map((job) => (
-          <Card key={job.id} className="card-hover">
+          <Card key={job._id} className="card-hover">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -150,7 +248,7 @@ export default function AvailableJobs() {
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Users className="h-4 w-4" />
-                  {job.vacancies.toLocaleString()} vacancies
+                  {job.vacancies?.toLocaleString()} vacancies
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Briefcase className="h-4 w-4" />
@@ -162,17 +260,17 @@ export default function AvailableJobs() {
                 <div>
                   <p className="text-xs text-muted-foreground">Application Fee</p>
                   <p className="font-medium">
-                    ₹{job.fees.general}{" "}
+                    ₹{job.fees?.general}{" "}
                     <span className="text-xs text-muted-foreground">
-                      (Gen/OBC) | ₹{job.fees.sc} (SC/ST)
+                      (Gen/OBC) | ₹{job.fees?.sc} (SC/ST)
                     </span>
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to={`/job/${job.id}`}>Details</Link>
+                  <Button variant="outline" size="sm" onClick={() => handleViewDetails(job)}>
+                    Details
                   </Button>
-                  <Button size="sm" onClick={() => handleApply(job.title)}>
+                  <Button size="sm" onClick={() => handleApply(job)}>
                     Apply <ArrowRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
@@ -200,6 +298,96 @@ export default function AvailableJobs() {
           </Button>
         </div>
       )}
+
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh]">
+          <DialogHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <Badge className="mb-2">{selectedJob?.category}</Badge>
+                <DialogTitle className="text-xl">{selectedJob?.title}</DialogTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {selectedJob?.department}
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            {selectedJob && (
+              <div className="space-y-6 pr-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedJob.location}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span>Last Date: {new Date(selectedJob.lastDate).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedJob.vacancies?.toLocaleString()} Vacancies</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedJob.eligibility}</span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="font-semibold mb-2">Description</h3>
+                  <p className="text-sm text-muted-foreground">{selectedJob.description}</p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">Qualifications</h3>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                    {selectedJob.qualifications?.map((q, i) => (
+                      <li key={i}>{q}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Age Limit</h3>
+                    <p className="text-sm text-muted-foreground">{selectedJob.ageLimit}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Salary</h3>
+                    <p className="text-sm text-primary font-medium">{selectedJob.salary}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">Application Fee</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="p-2 bg-muted rounded">
+                      <p className="text-muted-foreground">General/OBC</p>
+                      <p className="font-medium">₹{selectedJob.fees?.general}</p>
+                    </div>
+                    <div className="p-2 bg-muted rounded">
+                      <p className="text-muted-foreground">SC/ST</p>
+                      <p className="font-medium">₹{selectedJob.fees?.sc}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <Button variant="outline" onClick={() => setDetailsOpen(false)} className="flex-1">
+                    Close
+                  </Button>
+                  <Button onClick={() => { setDetailsOpen(false); handleApply(selectedJob); }} className="flex-1">
+                    Apply Now <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
