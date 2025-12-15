@@ -53,6 +53,7 @@ import AdminLegal from "./pages/admin/AdminLegal";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminAIMonitoring from "./pages/admin/AdminAIMonitoring";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminKYC from "./pages/admin/AdminKYC";
 
 // CSC Portal
 import { CSCLayout } from "./components/csc/CSCLayout";
@@ -125,6 +126,7 @@ const App = () => (
             <Route path="packages" element={<AdminPackages />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="documents" element={<AdminDocuments />} />
+            <Route path="kyc" element={<AdminKYC />} />
             <Route path="withdrawals" element={<AdminWithdrawals />} />
             <Route path="support" element={<AdminSupport />} />
             <Route path="content" element={<AdminContent />} />

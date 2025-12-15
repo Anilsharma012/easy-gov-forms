@@ -7,6 +7,8 @@ import {
   Clock,
   Eye,
   Download,
+  Loader2,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,6 +88,9 @@ export default function AdminDocuments() {
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [previewData, setPreviewData] = useState<{ fileData: string; fileName: string } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchDocuments = async () => {
     try {
@@ -170,6 +175,36 @@ export default function AdminDocuments() {
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const handleViewDocument = async (doc: UserDoc) => {
+    setPreviewLoading(true);
+    setShowPreviewDialog(true);
+    setSelectedDoc(doc);
+    try {
+      const response = await fetch(`/api/documents/view/${doc._id}`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setPreviewData({ fileData: data.fileData, fileName: data.fileName });
+      } else {
+        toast.error(data.message || 'Failed to load document');
+        setShowPreviewDialog(false);
+      }
+    } catch (error) {
+      toast.error('Failed to load document');
+      setShowPreviewDialog(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const getFileType = (fileName: string) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'pdf';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return 'image';
+    return 'unknown';
   };
 
   const filteredDocuments = documents.filter((doc) => {
@@ -328,7 +363,7 @@ export default function AdminDocuments() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => window.open(doc.filePath, '_blank')}
+                              onClick={() => handleViewDocument(doc)}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -394,6 +429,89 @@ export default function AdminDocuments() {
               disabled={processingId !== null}
             >
               Reject Document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPreviewDialog} onOpenChange={(open) => {
+        setShowPreviewDialog(open);
+        if (!open) {
+          setPreviewData(null);
+          setSelectedDoc(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Document Preview: {selectedDoc?.name}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedDoc && (
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p><strong>User:</strong> {selectedDoc.userId?.name} ({selectedDoc.userId?.email})</p>
+                <p><strong>Type:</strong> {selectedDoc.type}</p>
+                <p><strong>File:</strong> {selectedDoc.originalFileName}</p>
+                {selectedDoc.documentNumber && <p><strong>Document Number:</strong> {selectedDoc.documentNumber}</p>}
+              </div>
+            )}
+            <div className="border rounded-lg overflow-hidden bg-muted/50 min-h-[400px] flex items-center justify-center">
+              {previewLoading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Loading document...</p>
+                </div>
+              ) : previewData ? (
+                getFileType(previewData.fileName) === 'image' ? (
+                  <img 
+                    src={`data:image/${previewData.fileName.split('.').pop()};base64,${previewData.fileData}`} 
+                    alt={previewData.fileName}
+                    className="max-w-full max-h-[60vh] object-contain"
+                  />
+                ) : getFileType(previewData.fileName) === 'pdf' ? (
+                  <iframe
+                    src={`data:application/pdf;base64,${previewData.fileData}`}
+                    className="w-full h-[60vh]"
+                    title="PDF Preview"
+                  />
+                ) : (
+                  <p className="text-muted-foreground">Cannot preview this file type</p>
+                )
+              ) : (
+                <p className="text-muted-foreground">No preview available</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2">
+            {selectedDoc?.status === 'pending' && (
+              <>
+                <Button 
+                  variant="outline" 
+                  className="text-success border-success hover:bg-success/10"
+                  onClick={() => {
+                    handleApprove(selectedDoc._id);
+                    setShowPreviewDialog(false);
+                  }}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="text-destructive border-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    setShowPreviewDialog(false);
+                    setShowRejectDialog(true);
+                  }}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+              </>
+            )}
+            <Button variant="outline" onClick={() => setShowPreviewDialog(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

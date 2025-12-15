@@ -286,4 +286,42 @@ router.patch('/admin/:userId/document/:docType', verifyToken, isAdmin, async (re
   }
 });
 
+router.get('/admin/:userId/document/:docType/view', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId, docType } = req.params;
+
+    const kyc = await UserKYC.findOne({ userId });
+    if (!kyc) {
+      return res.status(404).json({ message: 'KYC not found' });
+    }
+
+    const doc = kyc.documents.find(d => d.documentType === docType);
+    if (!doc) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    const filePath = path.join(process.cwd(), doc.filePath);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found on server' });
+    }
+
+    const fileBuffer = fs.readFileSync(filePath);
+    const base64 = fileBuffer.toString('base64');
+    const ext = path.extname(doc.fileName).toLowerCase();
+    
+    let mimeType = 'application/octet-stream';
+    if (ext === '.pdf') mimeType = 'application/pdf';
+    else if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+    else if (ext === '.png') mimeType = 'image/png';
+
+    res.json({
+      fileName: doc.fileName,
+      mimeType,
+      data: `data:${mimeType};base64,${base64}`,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch document' });
+  }
+});
+
 export default router;

@@ -17,6 +17,7 @@ import {
   Shield,
   FileCheck,
   Wallet,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -55,6 +56,7 @@ const menuItems = [
     items: [
       { title: "Payments", icon: CreditCard, url: "/admin/payments" },
       { title: "Documents", icon: FileCheck, url: "/admin/documents" },
+      { title: "KYC Verification", icon: ShieldCheck, url: "/admin/kyc" },
       { title: "Withdrawals", icon: Wallet, url: "/admin/withdrawals" },
       { title: "Support Tickets", icon: LifeBuoy, url: "/admin/support" },
       { title: "Content", icon: FileText, url: "/admin/content" },
