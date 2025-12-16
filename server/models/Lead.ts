@@ -17,6 +17,9 @@ export interface ILead extends Document {
   assignedTo?: string;
   assignedCenterId?: mongoose.Types.ObjectId;
   userId?: mongoose.Types.ObjectId;
+  // Optional linkage (helps us sync application -> lead reliably)
+  applicationId?: string;
+  jobId?: mongoose.Types.ObjectId;
   notes?: string;
   comments?: ILeadComment[];
   createdAt: Date;
@@ -40,6 +43,8 @@ const leadSchema = new Schema<ILead>({
   assignedTo: { type: String },
   assignedCenterId: { type: Schema.Types.ObjectId, ref: 'CSCCenter' },
   userId: { type: Schema.Types.ObjectId, ref: 'User' },
+  applicationId: { type: String, index: true },
+  jobId: { type: Schema.Types.ObjectId, ref: 'Job' },
   notes: { type: String },
   comments: [leadCommentSchema],
 }, { timestamps: true });

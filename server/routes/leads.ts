@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import { Lead } from '../models/Lead';
 import { CSCCenter } from '../models/CSCCenter';
+import { Application } from '../models/Application';
+import { User } from '../models/User';
 import { verifyToken, isAdmin, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -39,6 +41,86 @@ router.get('/', verifyToken, isAdmin, async (req: AuthRequest, res: Response) =>
     res.json({ leads });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to fetch leads' });
+  }
+});
+
+// ✅ One-time / safe sync endpoint
+// Existing applications (already applied) ko leads me convert karne ke liye.
+// This solves: "Applications dikh rahi hain but Admin > E-Gov Leads blank".
+router.post('/sync-from-applications', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const limit = Number(req.body?.limit || 500);
+
+    const applications = await Application.find({
+      applicationId: { $exists: true, $ne: null },
+      type: 'job',
+    })
+      .select('applicationId userId jobId formName type createdAt')
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    const appIds = applications.map((a) => a.applicationId).filter(Boolean) as string[];
+
+    const existingLeads = await Lead.find({ applicationId: { $in: appIds } })
+      .select('applicationId')
+      .lean();
+
+    const existingSet = new Set(existingLeads.map((l: any) => l.applicationId).filter(Boolean));
+
+    const userIds = Array.from(
+      new Set(applications.map((a) => String(a.userId)).filter(Boolean))
+    );
+
+    const users = await User.find({ _id: { $in: userIds } })
+      .select('name email phone')
+      .lean();
+
+    const userMap = new Map<string, any>();
+    for (const u of users) userMap.set(String(u._id), u);
+
+    let created = 0;
+    let skipped = 0;
+
+    for (const app of applications) {
+      const appId = (app as any).applicationId as string | undefined;
+      if (!appId) {
+        skipped += 1;
+        continue;
+      }
+
+      if (existingSet.has(appId)) {
+        skipped += 1;
+        continue;
+      }
+
+      const u = userMap.get(String((app as any).userId));
+      const mobile = u?.phone || 'NA';
+
+      await Lead.create({
+        userId: (app as any).userId,
+        name: u?.name || 'User',
+        mobile,
+        email: u?.email || '',
+        formName: (app as any).formName,
+        type: 'job',
+        status: 'new',
+        applicationId: appId,
+        jobId: (app as any).jobId,
+        notes: `Auto lead created from application sync. ApplicationId: ${appId}`,
+      });
+
+      existingSet.add(appId);
+      created += 1;
+    }
+
+    res.json({
+      message: 'Sync completed',
+      checkedApplications: applications.length,
+      created,
+      skipped,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to sync leads from applications' });
   }
 });
 
@@ -196,5 +278,15 @@ router.delete('/:id', verifyToken, isAdmin, async (req: AuthRequest, res: Respon
     res.status(500).json({ message: error.message || 'Failed to delete lead' });
   }
 });
+
+router.get('/admin', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const leads = await Lead.find().populate('assignedCenterId').sort({ createdAt: -1 });
+    res.json({ leads });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch leads' });
+  }
+});
+
 
 export default router;
