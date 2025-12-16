@@ -70,6 +70,7 @@ router.get('/leads', verifyToken, isCSC, async (req: AuthRequest, res: Response)
     }
 
     const leads = await Lead.find({ assignedCenterId: cscCenter._id })
+      .populate('userId', 'name email mobile address state city pincode dob gender')
       .sort({ createdAt: -1 })
       .limit(100);
 

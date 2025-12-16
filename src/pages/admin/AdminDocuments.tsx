@@ -9,6 +9,7 @@ import {
   Download,
   Loader2,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,6 +92,8 @@ export default function AdminDocuments() {
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [previewData, setPreviewData] = useState<{ fileData: string; fileName: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [showResendDialog, setShowResendDialog] = useState(false);
+  const [resendReason, setResendReason] = useState("");
 
   const fetchDocuments = async () => {
     try {
@@ -205,6 +208,56 @@ export default function AdminDocuments() {
     if (ext === 'pdf') return 'pdf';
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return 'image';
     return 'unknown';
+  };
+
+  const handleDownload = async (doc: UserDoc) => {
+    try {
+      const response = await fetch(`/api/documents/download/${doc._id}`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        const link = document.createElement('a');
+        link.href = `data:${data.mimeType};base64,${data.fileData}`;
+        link.download = data.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Document downloaded');
+      } else {
+        toast.error(data.message || 'Failed to download');
+      }
+    } catch (error) {
+      toast.error('Failed to download document');
+    }
+  };
+
+  const handleResendRequest = async () => {
+    if (!selectedDoc) return;
+    setProcessingId(selectedDoc._id);
+    try {
+      const response = await fetch(`/api/documents/resend-request/${selectedDoc._id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason: resendReason })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success('Resend request sent to user');
+        setShowResendDialog(false);
+        setResendReason("");
+        setSelectedDoc(null);
+        fetchDocuments();
+        fetchStats();
+      } else {
+        toast.error(data.message || 'Failed to send resend request');
+      }
+    } catch (error) {
+      toast.error('Failed to send resend request');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const filteredDocuments = documents.filter((doc) => {
@@ -359,13 +412,22 @@ export default function AdminDocuments() {
                           {new Date(doc.uploadedAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleViewDocument(doc)}
+                              title="View"
                             >
                               <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownload(doc)}
+                              title="Download"
+                            >
+                              <Download className="h-4 w-4" />
                             </Button>
                             {doc.status === 'pending' && (
                               <>
@@ -375,6 +437,7 @@ export default function AdminDocuments() {
                                   className="text-success hover:text-success"
                                   onClick={() => handleApprove(doc._id)}
                                   disabled={processingId === doc._id}
+                                  title="Approve"
                                 >
                                   <CheckCircle className="h-4 w-4" />
                                 </Button>
@@ -387,11 +450,25 @@ export default function AdminDocuments() {
                                     setShowRejectDialog(true);
                                   }}
                                   disabled={processingId === doc._id}
+                                  title="Reject"
                                 >
                                   <XCircle className="h-4 w-4" />
                                 </Button>
                               </>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-warning hover:text-warning"
+                              onClick={() => {
+                                setSelectedDoc(doc);
+                                setShowResendDialog(true);
+                              }}
+                              disabled={processingId === doc._id}
+                              title="Request Re-upload"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -512,6 +589,39 @@ export default function AdminDocuments() {
             )}
             <Button variant="outline" onClick={() => setShowPreviewDialog(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showResendDialog} onOpenChange={setShowResendDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Re-upload</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">
+              Request the user to re-upload this document. They will be notified with the reason you provide.
+            </p>
+            <Textarea
+              placeholder="Reason for re-upload request (e.g., 'Document is blurry', 'Wrong document type', etc.)"
+              value={resendReason}
+              onChange={(e) => setResendReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowResendDialog(false);
+              setResendReason("");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleResendRequest}
+              disabled={processingId !== null || !resendReason.trim()}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Send Request
             </Button>
           </DialogFooter>
         </DialogContent>

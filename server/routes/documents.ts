@@ -210,4 +210,126 @@ router.patch('/admin/:documentId/verify', verifyToken, isAdmin, async (req: Auth
   }
 });
 
+router.get('/download/:documentId', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { documentId } = req.params;
+    const isAdminUser = req.user?.role === 'admin';
+    const isCSCUser = req.user?.role === 'csc';
+
+    const document = await UserDocument.findById(documentId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    if (!isAdminUser) {
+      if (isCSCUser) {
+        const { CSCCenter } = await import('../models/CSCCenter');
+        const { Lead } = await import('../models/Lead');
+        const cscCenter = await CSCCenter.findOne({ userId });
+        if (!cscCenter) {
+          return res.status(403).json({ message: 'Not authorized' });
+        }
+        const hasAccess = await Lead.exists({ 
+          assignedCenterId: cscCenter._id, 
+          userId: (document as any).userId 
+        });
+        if (!hasAccess) {
+          return res.status(403).json({ message: 'Not authorized to access this document' });
+        }
+      } else {
+        if ((document as any).userId?.toString() !== userId) {
+          return res.status(403).json({ message: 'Not authorized to access this document' });
+        }
+      }
+    }
+
+    const filePath = path.join(process.cwd(), (document as any).filePath || '');
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    const fileBuffer = fs.readFileSync(filePath);
+    const base64 = fileBuffer.toString('base64');
+    const ext = path.extname((document as any).originalFileName).toLowerCase();
+    
+    let mimeType = 'application/octet-stream';
+    if (ext === '.pdf') mimeType = 'application/pdf';
+    else if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+    else if (ext === '.png') mimeType = 'image/png';
+
+    res.json({
+      fileData: base64,
+      fileName: (document as any).originalFileName,
+      mimeType,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to download document' });
+  }
+});
+
+router.post('/resend-request/:documentId', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { documentId } = req.params;
+    const { reason } = req.body;
+
+    const document = await UserDocument.findById(documentId).populate('userId', 'name email');
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    await UserDocument.findByIdAndUpdate(documentId, {
+      status: 'rejected',
+      rejectionReason: reason || 'Please re-upload this document',
+      resendRequested: true,
+      resendRequestedAt: new Date(),
+    });
+
+    res.json({ message: 'Resend request sent to user. They will be notified to re-upload the document.' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to send resend request' });
+  }
+});
+
+router.get('/user/:userId', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const requestingUserId = req.user?.userId;
+    const { userId } = req.params;
+    const isAdminUser = req.user?.role === 'admin';
+    const isCSCUser = req.user?.role === 'csc';
+
+    if (isAdminUser) {
+      const documents = await UserDocument.find({ userId }).sort({ createdAt: -1 });
+      return res.json({ documents });
+    }
+
+    if (isCSCUser) {
+      const { CSCCenter } = await import('../models/CSCCenter');
+      const { Lead } = await import('../models/Lead');
+      const cscCenter = await CSCCenter.findOne({ userId: requestingUserId });
+      if (!cscCenter) {
+        return res.status(403).json({ message: 'Not authorized' });
+      }
+      const hasAccess = await Lead.exists({ 
+        assignedCenterId: cscCenter._id, 
+        userId: userId 
+      });
+      if (!hasAccess) {
+        return res.status(403).json({ message: 'Not authorized to view these documents' });
+      }
+      const documents = await UserDocument.find({ userId }).sort({ createdAt: -1 });
+      return res.json({ documents });
+    }
+
+    if (requestingUserId !== userId) {
+      return res.status(403).json({ message: 'Not authorized to view these documents' });
+    }
+
+    const documents = await UserDocument.find({ userId }).sort({ createdAt: -1 });
+    res.json({ documents });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch user documents' });
+  }
+});
+
 export default router;

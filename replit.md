@@ -45,6 +45,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Admin Approval Workflows
 - **Document Verification**: Admins can view, approve, or reject user-uploaded documents with rejection reasons
+- **Document Download**: Admins can download user documents directly from the admin panel
+- **Re-upload Requests**: Admins can request users to re-upload specific documents with a reason (e.g., blurry image, wrong document type)
 - **Payment Management**: View all payment transactions with revenue analytics and filtering
 - **Wallet Withdrawals**: Approve or reject CSC center withdrawal requests with automatic wallet balance refunds on rejection
 
@@ -52,6 +54,12 @@ Preferred communication style: Simple, everyday language.
 - **Wallet System**: CSC centers have wallets with balance, earnings tracking, and withdrawal requests
 - **Task Assignment**: Admins can assign form-filling tasks to CSC centers with commission
 - **Chat System**: Cross-dashboard messaging between admins, CSC centers, users, and leads
+- **Lead-User Access**: When leads are linked to registered users (via userId), CSC centers can view full user details and download their documents
+- **Lead Packages**: CSC centers can view and purchase lead packages from their dashboard
+
+### Lead-User Linking
+- **Lead Model**: Leads can be linked to registered users via the `userId` field
+- **Security**: CSC centers can only access documents of users whose leads are assigned to them (verified server-side)
 
 ## External Dependencies
 
