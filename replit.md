@@ -61,6 +61,12 @@ Preferred communication style: Simple, everyday language.
 - **Lead Model**: Leads can be linked to registered users via the `userId` field
 - **Security**: CSC centers can only access documents of users whose leads are assigned to them (verified server-side)
 
+### Auto-Fill Form Feature
+- **Profile Storage**: User model stores extended personal information (fatherName, motherName, dateOfBirth, gender, category, nationality, address, pincode, qualification, passingYear)
+- **Auto-Population**: When users apply for a job, the form is automatically pre-filled with their previously saved profile data
+- **Profile Save on Submit**: When a user submits a job application, their personal information is saved to their profile for future applications
+- **API Endpoint**: `PUT /api/auth/profile` updates user profile data
+
 ## External Dependencies
 
 ### Database
