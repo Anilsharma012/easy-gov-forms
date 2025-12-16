@@ -17,7 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Users, Phone, CheckCircle, XCircle, FileText, Eye, Download, User, Mail, Calendar } from "lucide-react";
+import { Search, Users, Phone, CheckCircle, XCircle, FileText, Eye, Download, User, Mail, Calendar, MessageSquare } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -66,6 +67,7 @@ const CSCLeads = () => {
   const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const fetchLeads = async () => {
     try {
@@ -283,18 +285,26 @@ const CSCLeads = () => {
                       {format(new Date(lead.createdAt), "dd MMM yyyy")}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        {lead.userId && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewUserDetails(lead)}
-                            title="View User Details"
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                          </Button>
-                        )}
+                      <div className="flex gap-1 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewUserDetails(lead)}
+                          title="View Details & Documents"
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                          onClick={() => navigate(`/csc/dashboard/chat?leadId=${lead._id}`)}
+                          title="Chat with this lead"
+                        >
+                          <MessageSquare className="h-3 w-3 mr-1" />
+                          Chat
+                        </Button>
                         {lead.status === "new" && (
                           <Button
                             size="sm"
@@ -314,7 +324,7 @@ const CSCLeads = () => {
                               onClick={() => handleStatusUpdate(lead._id, "completed")}
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Complete
+                              Done
                             </Button>
                             <Button
                               size="sm"
@@ -322,13 +332,9 @@ const CSCLeads = () => {
                               className="text-gray-600 border-gray-600 hover:bg-gray-50"
                               onClick={() => handleStatusUpdate(lead._id, "cancelled")}
                             >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Cancel
+                              <XCircle className="h-3 w-3" />
                             </Button>
                           </>
-                        )}
-                        {(lead.status === "completed" || lead.status === "cancelled") && !lead.userId && (
-                          <span className="text-xs text-muted-foreground">No actions</span>
                         )}
                       </div>
                     </TableCell>
@@ -355,33 +361,35 @@ const CSCLeads = () => {
             </DialogTitle>
           </DialogHeader>
           
-          {selectedLead?.userId ? (
+          {selectedLead && (
             <div className="space-y-6">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Personal Information</CardTitle>
+                  <CardTitle className="text-base">
+                    {selectedLead.userId ? "Registered User Information" : "Lead Information"}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Name:</span>
-                      <p className="font-medium">{selectedLead.userId.name}</p>
+                      <p className="font-medium">{selectedLead.userId?.name || selectedLead.name}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Email:</span>
                       <p className="font-medium flex items-center gap-1">
                         <Mail className="h-3 w-3" />
-                        {selectedLead.userId.email}
+                        {selectedLead.userId?.email || selectedLead.email || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Mobile:</span>
                       <p className="font-medium flex items-center gap-1">
                         <Phone className="h-3 w-3" />
-                        {selectedLead.userId.mobile || selectedLead.mobile}
+                        {selectedLead.userId?.mobile || selectedLead.mobile}
                       </p>
                     </div>
-                    {selectedLead.userId.dob && (
+                    {selectedLead.userId?.dob && (
                       <div>
                         <span className="text-muted-foreground">Date of Birth:</span>
                         <p className="font-medium flex items-center gap-1">
@@ -390,13 +398,13 @@ const CSCLeads = () => {
                         </p>
                       </div>
                     )}
-                    {selectedLead.userId.gender && (
+                    {selectedLead.userId?.gender && (
                       <div>
                         <span className="text-muted-foreground">Gender:</span>
                         <p className="font-medium capitalize">{selectedLead.userId.gender}</p>
                       </div>
                     )}
-                    {selectedLead.userId.address && (
+                    {selectedLead.userId?.address && (
                       <div className="col-span-2">
                         <span className="text-muted-foreground">Address:</span>
                         <p className="font-medium">
@@ -405,6 +413,13 @@ const CSCLeads = () => {
                           {selectedLead.userId.state && `, ${selectedLead.userId.state}`}
                           {selectedLead.userId.pincode && ` - ${selectedLead.userId.pincode}`}
                         </p>
+                      </div>
+                    )}
+                    {!selectedLead.userId && (
+                      <div className="col-span-2">
+                        <Badge variant="outline" className="text-orange-600 border-orange-300">
+                          User has not registered yet
+                        </Badge>
                       </div>
                     )}
                   </div>
@@ -497,10 +512,6 @@ const CSCLeads = () => {
                 </CardContent>
               </Card>
             </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">
-              No linked user account for this lead
-            </p>
           )}
         </DialogContent>
       </Dialog>
