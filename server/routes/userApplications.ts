@@ -106,8 +106,9 @@ router.post("/apply", verifyToken, async (req: AuthRequest, res: Response) => {
     // and result: Admin > E-Gov Leads blank.
     try {
       const user = await User.findById(userId).select("name phone email");
+      console.log("[LEAD CREATE] User data:", { userId, name: user?.name, phone: user?.phone, email: user?.email });
 
-      await Lead.create({
+      const newLead = await Lead.create({
         userId,
         name: user?.name || "User",
         mobile: user?.phone || "NA", // Lead schema me `mobile` required hai
@@ -120,8 +121,9 @@ router.post("/apply", verifyToken, async (req: AuthRequest, res: Response) => {
         // Don't set assignedTo/assignedCenterId here. Unassigned lead = admin assign karega.
         notes: `Auto lead created from job application. ApplicationId: ${applicationId}`,
       });
+      console.log("[LEAD CREATE SUCCESS] Lead ID:", newLead._id, "ApplicationId:", applicationId);
     } catch (leadErr) {
-      console.error("Lead create error:", leadErr);
+      console.error("[LEAD CREATE ERROR]:", leadErr);
       // NOTE: lead create fail ho bhi jaye to application success rehna chahiye
     }
 
