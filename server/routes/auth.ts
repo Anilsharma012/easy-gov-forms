@@ -110,6 +110,45 @@ router.get('/me', verifyToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.get('/profile', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await User.findById(req.user?.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ user });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to get profile' });
+  }
+});
+
+router.patch('/profile', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { name, phone, city, state } = req.body;
+
+    const updateData: Record<string, any> = {};
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'Profile updated successfully', user });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update profile' });
+  }
+});
+
 router.put('/profile', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;

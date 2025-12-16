@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Mail,
@@ -27,17 +27,54 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { mockUserProfile } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 export default function Settings() {
+  const { user } = useAuth();
   const [profile, setProfile] = useState({
-    name: mockUserProfile.name,
-    email: mockUserProfile.email,
-    mobile: mockUserProfile.mobile,
-    city: mockUserProfile.city,
-    state: mockUserProfile.state,
+    name: "",
+    email: "",
+    mobile: "",
+    city: "",
+    state: "",
   });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || "",
+        email: user.email || "",
+        mobile: user.phone || "",
+        city: "",
+        state: "",
+      });
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await fetch("/api/auth/profile", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.user) {
+          setProfile({
+            name: data.user.name || "",
+            email: data.user.email || "",
+            mobile: data.user.phone || "",
+            city: data.user.city || "",
+            state: data.user.state || "",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+    }
+  };
 
   const [notifications, setNotifications] = useState({
     email: true,
@@ -47,8 +84,32 @@ export default function Settings() {
     promotions: false,
   });
 
-  const handleSaveProfile = () => {
-    toast.success("Profile updated successfully!");
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: profile.name,
+          phone: profile.mobile,
+          city: profile.city,
+          state: profile.state,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Profile updated successfully!");
+      } else {
+        const data = await response.json();
+        toast.error(data.message || "Failed to update profile");
+      }
+    } catch (error) {
+      toast.error("Failed to update profile");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChangePassword = () => {
@@ -136,9 +197,9 @@ export default function Settings() {
               </div>
             </div>
           </div>
-          <Button onClick={handleSaveProfile}>
+          <Button onClick={handleSaveProfile} disabled={loading}>
             <Save className="h-4 w-4 mr-2" />
-            Save Changes
+            {loading ? "Saving..." : "Save Changes"}
           </Button>
         </CardContent>
       </Card>

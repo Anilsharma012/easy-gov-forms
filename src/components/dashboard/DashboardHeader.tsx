@@ -12,11 +12,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
-import { mockUserProfile, mockNotifications } from "@/data/mockData";
+import { Link, useNavigate } from "react-router-dom";
+import { mockNotifications } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function DashboardHeader() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const unreadCount = mockNotifications.filter((n) => !n.read).length;
+
+  const userName = user?.name || "User";
+  const userInitials = userName.split(" ").map((n) => n[0]).join("").toUpperCase();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
 
   return (
     <header className="h-16 border-b border-border bg-card px-4 flex items-center justify-between gap-4">
@@ -49,14 +60,11 @@ export function DashboardHeader() {
             <Button variant="ghost" className="flex items-center gap-2 px-2">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                  {mockUserProfile.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+                  {userInitials}
                 </AvatarFallback>
               </Avatar>
               <span className="hidden md:block text-sm font-medium">
-                {mockUserProfile.name}
+                {userName}
               </span>
             </Button>
           </DropdownMenuTrigger>
@@ -73,8 +81,8 @@ export function DashboardHeader() {
               <Link to="/dashboard/support">Help & Support</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="text-destructive">
-              <Link to="/">Logout</Link>
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
+              Logout
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
