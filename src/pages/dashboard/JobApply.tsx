@@ -87,7 +87,40 @@ export default function JobApply() {
 
   useEffect(() => {
     fetchJobAndEligibility();
+    fetchUserProfile();
   }, [id]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const profile = data.user;
+        setFormData((prev) => ({
+          ...prev,
+          fullName: profile.name || prev.fullName,
+          email: profile.email || prev.email,
+          phone: profile.phone || prev.phone,
+          fatherName: profile.fatherName || prev.fatherName,
+          motherName: profile.motherName || prev.motherName,
+          dateOfBirth: profile.dateOfBirth || prev.dateOfBirth,
+          gender: profile.gender || prev.gender,
+          category: profile.category || prev.category,
+          nationality: profile.nationality || prev.nationality,
+          address: profile.address || prev.address,
+          city: profile.city || prev.city,
+          state: profile.state || prev.state,
+          pincode: profile.pincode || prev.pincode,
+          qualification: profile.qualification || prev.qualification,
+          passingYear: profile.passingYear || prev.passingYear,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch user profile:", error);
+    }
+  };
 
   const fetchJobAndEligibility = async () => {
     try {
@@ -125,6 +158,35 @@ export default function JobApply() {
 
     setSubmitting(true);
     try {
+      const profileResponse = await fetch("/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: formData.fullName,
+          phone: formData.phone,
+          fatherName: formData.fatherName,
+          motherName: formData.motherName,
+          dateOfBirth: formData.dateOfBirth,
+          gender: formData.gender,
+          category: formData.category,
+          nationality: formData.nationality,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          qualification: formData.qualification,
+          passingYear: formData.passingYear,
+        }),
+      });
+
+      if (!profileResponse.ok) {
+        const profileError = await profileResponse.json();
+        toast.error(profileError.message || "Failed to save profile");
+        setSubmitting(false);
+        return;
+      }
+
       const response = await fetch("/api/user-applications/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

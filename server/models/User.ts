@@ -11,6 +11,16 @@ export interface IUser extends Document {
   isActive: boolean;
   city?: string;
   state?: string;
+  address?: string;
+  pincode?: string;
+  fatherName?: string;
+  motherName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  category?: string;
+  nationality?: string;
+  qualification?: string;
+  passingYear?: string;
   kycVerified: boolean;
   activePackage?: string;
   totalApplications: number;
@@ -66,6 +76,47 @@ const userSchema = new Schema<IUser>({
     trim: true,
   },
   state: {
+    type: String,
+    trim: true,
+  },
+  address: {
+    type: String,
+    trim: true,
+  },
+  pincode: {
+    type: String,
+    trim: true,
+  },
+  fatherName: {
+    type: String,
+    trim: true,
+  },
+  motherName: {
+    type: String,
+    trim: true,
+  },
+  dateOfBirth: {
+    type: String,
+    trim: true,
+  },
+  gender: {
+    type: String,
+    trim: true,
+  },
+  category: {
+    type: String,
+    trim: true,
+  },
+  nationality: {
+    type: String,
+    trim: true,
+    default: 'Indian',
+  },
+  qualification: {
+    type: String,
+    trim: true,
+  },
+  passingYear: {
     type: String,
     trim: true,
   },

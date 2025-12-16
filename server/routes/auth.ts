@@ -110,6 +110,58 @@ router.get('/me', verifyToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.put('/profile', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const {
+      name,
+      phone,
+      fatherName,
+      motherName,
+      dateOfBirth,
+      gender,
+      category,
+      nationality,
+      address,
+      city,
+      state,
+      pincode,
+      qualification,
+      passingYear,
+    } = req.body;
+
+    const updateData: Record<string, any> = {};
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
+    if (fatherName !== undefined) updateData.fatherName = fatherName;
+    if (motherName !== undefined) updateData.motherName = motherName;
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
+    if (gender !== undefined) updateData.gender = gender;
+    if (category !== undefined) updateData.category = category;
+    if (nationality !== undefined) updateData.nationality = nationality;
+    if (address !== undefined) updateData.address = address;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (pincode !== undefined) updateData.pincode = pincode;
+    if (qualification !== undefined) updateData.qualification = qualification;
+    if (passingYear !== undefined) updateData.passingYear = passingYear;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'Profile updated successfully', user });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update profile' });
+  }
+});
+
 router.post('/admin/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
