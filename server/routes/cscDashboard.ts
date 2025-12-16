@@ -15,10 +15,14 @@ import { CSCSupportTicket } from '../models/CSCSupportTicket';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+let razorpay: Razorpay | null = null;
+
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+}
 
 const router = Router();
 
@@ -232,6 +236,10 @@ router.put('/leads/:leadId/status', verifyToken, isCSC, async (req: AuthRequest,
 
 router.post('/purchase-package/create-order', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
   try {
+    if (!razorpay) {
+      return res.status(503).json({ message: 'Payment service not configured' });
+    }
+
     const userId = req.user?.userId;
     const { packageId } = req.body;
 
@@ -278,6 +286,10 @@ router.post('/purchase-package/create-order', verifyToken, isCSC, async (req: Au
 
 router.post('/purchase-package/verify', verifyToken, isCSC, async (req: AuthRequest, res: Response) => {
   try {
+    if (!razorpay) {
+      return res.status(503).json({ message: 'Payment service not configured' });
+    }
+
     const userId = req.user?.userId;
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 

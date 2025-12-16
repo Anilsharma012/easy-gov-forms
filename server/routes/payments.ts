@@ -9,10 +9,14 @@ import Razorpay from 'razorpay';
 
 const router = Router();
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+let razorpay: Razorpay | null = null;
+
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+}
 
 router.get('/packages', async (req, res: Response) => {
   try {
@@ -74,6 +78,10 @@ router.get('/packages', async (req, res: Response) => {
 
 router.post('/create-order', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
+    if (!razorpay) {
+      return res.status(503).json({ message: 'Payment service not configured' });
+    }
+
     const { packageId } = req.body;
     const userId = req.user?.userId;
 
@@ -115,6 +123,10 @@ router.post('/create-order', verifyToken, async (req: AuthRequest, res: Response
 
 router.post('/verify-payment', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
+    if (!razorpay) {
+      return res.status(503).json({ message: 'Payment service not configured' });
+    }
+
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
     const userId = req.user?.userId;
 
