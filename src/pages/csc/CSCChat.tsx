@@ -40,6 +40,7 @@ const CSCChat = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [cscCenterId, setCscCenterId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -48,10 +49,12 @@ const CSCChat = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedUser) {
-      fetchMessages(selectedUser._id);
+    if (selectedUser && cscCenterId) {
+      fetchMessages(selectedUser._id, cscCenterId);
+      const interval = setInterval(() => fetchMessages(selectedUser._id, cscCenterId), 5000);
+      return () => clearInterval(interval);
     }
-  }, [selectedUser]);
+  }, [selectedUser, cscCenterId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -69,6 +72,9 @@ const CSCChat = () => {
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
+        if (data.cscCenterId) {
+          setCscCenterId(data.cscCenterId);
+        }
       }
     } catch (error) {
       console.error("Error fetching chat users:", error);
@@ -77,9 +83,12 @@ const CSCChat = () => {
     }
   };
 
-  const fetchMessages = async (userId: string) => {
+  const fetchMessages = async (userId: string, cscCenterId?: string) => {
     try {
-      const response = await fetch(`/api/csc/dashboard/chat/messages/${userId}`, {
+      const conversationId = cscCenterId 
+        ? [cscCenterId, userId].sort().join('_')
+        : userId;
+      const response = await fetch(`/api/csc/dashboard/chat/messages/${conversationId}`, {
         credentials: "include",
       });
       if (response.ok) {
@@ -102,6 +111,7 @@ const CSCChat = () => {
         credentials: "include",
         body: JSON.stringify({
           receiverId: selectedUser._id,
+          receiverType: selectedUser.type || "lead",
           content: newMessage,
           type: "text",
         }),
@@ -111,10 +121,16 @@ const CSCChat = () => {
         const data = await response.json();
         setMessages([...messages, data.message]);
         setNewMessage("");
+        if (cscCenterId) {
+          fetchMessages(selectedUser._id, cscCenterId);
+        }
       } else {
-        toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
+        const errorData = await response.json();
+        console.error("Send message error:", errorData);
+        toast({ title: "Error", description: errorData.message || "Failed to send message", variant: "destructive" });
       }
     } catch (error) {
+      console.error("Send message error:", error);
       toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
     } finally {
       setSending(false);

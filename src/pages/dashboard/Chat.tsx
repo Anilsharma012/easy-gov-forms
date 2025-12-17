@@ -35,6 +35,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [conversationId, setConversationId] = useState<string>("");
+  const [leadId, setLeadId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,9 +66,9 @@ export default function Chat() {
       if (response.ok) {
         const data = await response.json();
         setCSCCenter(data.cscCenter);
-        if (data.cscCenter) {
-          const userId = document.cookie.split("userId=")[1]?.split(";")[0] || "";
-          const convId = [userId, data.cscCenter._id].sort().join("_");
+        if (data.cscCenter && data.leadId) {
+          setLeadId(data.leadId);
+          const convId = [data.leadId, data.cscCenter._id].sort().join("_");
           setConversationId(convId);
         }
       }
@@ -95,7 +96,7 @@ export default function Chat() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !cscCenter) return;
+    if (!newMessage.trim() || !cscCenter || !leadId) return;
 
     setSending(true);
     try {
@@ -107,6 +108,7 @@ export default function Chat() {
           receiverId: cscCenter._id,
           receiverType: "csc",
           content: newMessage.trim(),
+          leadId: leadId,
         }),
       });
 
@@ -114,7 +116,9 @@ export default function Chat() {
         setNewMessage("");
         fetchMessages();
       } else {
-        toast.error("Failed to send message");
+        const errorData = await response.json();
+        console.error("Send message error:", errorData);
+        toast.error(errorData.message || "Failed to send message");
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -239,7 +243,7 @@ export default function Chat() {
               ) : (
                 <div className="space-y-4">
                   {messages.map((message, index) => {
-                    const isUser = message.senderType === "user";
+                    const isUser = message.senderType === "user" || message.senderType === "lead";
                     const showDate =
                       index === 0 ||
                       formatDate(message.createdAt) !==

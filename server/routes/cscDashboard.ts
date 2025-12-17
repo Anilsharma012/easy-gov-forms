@@ -653,7 +653,7 @@ router.get('/chat/users', verifyToken, isCSC, async (req: AuthRequest, res: Resp
       mobile: lead.mobile,
     }));
 
-    res.json({ users });
+    res.json({ users, cscCenterId: cscCenter._id.toString() });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to fetch chat users' });
   }

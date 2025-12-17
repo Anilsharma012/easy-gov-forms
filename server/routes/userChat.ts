@@ -38,13 +38,31 @@ router.get('/my-csc', verifyToken, async (req: AuthRequest, res: Response) => {
 router.get('/conversations', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.json({ conversations: [] });
+    }
+
+    const lead = await Lead.findOne({
+      $or: [
+        { email: user.email },
+        { mobile: user.phone },
+      ],
+    });
+
+    if (!lead) {
+      return res.json({ conversations: [] });
+    }
+
+    const leadId = lead._id;
 
     const messages = await ChatMessage.aggregate([
       {
         $match: {
           $or: [
-            { senderId: userId, senderType: 'user' },
-            { receiverId: userId, receiverType: 'user' },
+            { senderId: leadId, senderType: 'lead' },
+            { receiverId: leadId, receiverType: 'lead' },
           ],
         },
       },
@@ -56,7 +74,7 @@ router.get('/conversations', verifyToken, async (req: AuthRequest, res: Response
           unreadCount: {
             $sum: {
               $cond: [
-                { $and: [{ $eq: ['$receiverId', userId] }, { $eq: ['$read', false] }] },
+                { $and: [{ $eq: ['$receiverId', leadId] }, { $eq: ['$read', false] }] },
                 1,
                 0,
               ],
@@ -78,14 +96,28 @@ router.get('/messages/:conversationId', verifyToken, async (req: AuthRequest, re
     const userId = req.user?.userId;
     const { conversationId } = req.params;
 
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.json({ messages: [] });
+    }
+
+    const lead = await Lead.findOne({
+      $or: [
+        { email: user.email },
+        { mobile: user.phone },
+      ],
+    });
+
     const messages = await ChatMessage.find({ conversationId })
       .sort({ createdAt: 1 })
       .limit(100);
 
-    await ChatMessage.updateMany(
-      { conversationId, receiverId: userId, receiverType: 'user', read: false },
-      { read: true, readAt: new Date() }
-    );
+    if (lead) {
+      await ChatMessage.updateMany(
+        { conversationId, receiverId: lead._id, receiverType: 'lead', read: false },
+        { read: true, readAt: new Date() }
+      );
+    }
 
     res.json({ messages });
   } catch (error: any) {
@@ -96,17 +128,37 @@ router.get('/messages/:conversationId', verifyToken, async (req: AuthRequest, re
 router.post('/send', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { receiverId, receiverType, content, type, fileUrl, fileName } = req.body;
+    const { receiverId, receiverType, content, type, fileUrl, fileName, leadId } = req.body;
 
     if (!receiverId || !content) {
       return res.status(400).json({ message: 'Receiver and content are required' });
     }
 
-    const conversationId = [userId, receiverId].sort().join('_');
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    let senderLeadId = leadId;
+    if (!senderLeadId) {
+      const lead = await Lead.findOne({
+        $or: [
+          { email: user.email },
+          { mobile: user.phone },
+        ],
+      });
+      senderLeadId = lead?._id?.toString();
+    }
+
+    if (!senderLeadId) {
+      return res.status(400).json({ message: 'Lead not found for this user' });
+    }
+
+    const conversationId = [senderLeadId, receiverId].sort().join('_');
 
     const message = new ChatMessage({
-      senderId: userId,
-      senderType: 'user',
+      senderId: senderLeadId,
+      senderType: 'lead',
       receiverId,
       receiverType: receiverType || 'csc',
       conversationId,
@@ -127,10 +179,26 @@ router.post('/send', verifyToken, async (req: AuthRequest, res: Response) => {
 router.get('/unread-count', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.json({ unreadCount: 0 });
+    }
+
+    const lead = await Lead.findOne({
+      $or: [
+        { email: user.email },
+        { mobile: user.phone },
+      ],
+    });
+
+    if (!lead) {
+      return res.json({ unreadCount: 0 });
+    }
 
     const count = await ChatMessage.countDocuments({
-      receiverId: userId,
-      receiverType: 'user',
+      receiverId: lead._id,
+      receiverType: 'lead',
       read: false,
     });
 
