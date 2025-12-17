@@ -4,8 +4,15 @@ import { ChatMessage } from '../models/ChatMessage';
 import { Lead } from '../models/Lead';
 import { CSCCenter } from '../models/CSCCenter';
 import { User } from '../models/User';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
+
+const chatUploadsDir = path.join(process.cwd(), 'uploads', 'chat');
+if (!fs.existsSync(chatUploadsDir)) {
+  fs.mkdirSync(chatUploadsDir, { recursive: true });
+}
 
 router.get('/my-csc', verifyToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -205,6 +212,48 @@ router.get('/unread-count', verifyToken, async (req: AuthRequest, res: Response)
     res.json({ unreadCount: count });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to fetch unread count' });
+  }
+});
+
+router.post('/upload', verifyToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { fileData, fileName } = req.body;
+
+    if (!fileData || !fileName) {
+      return res.status(400).json({ message: 'File data and file name are required' });
+    }
+
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.\./g, '');
+    const ext = path.extname(sanitizedFileName).toLowerCase();
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.doc', '.docx', '.xls', '.xlsx'];
+    
+    if (!allowedExtensions.includes(ext)) {
+      return res.status(400).json({ message: 'File type not allowed. Allowed: PDF, JPG, PNG, GIF, DOC, DOCX, XLS, XLSX' });
+    }
+
+    const base64Data = fileData.replace(/^data:.*;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    const maxSize = 10 * 1024 * 1024;
+    
+    if (buffer.length > maxSize) {
+      return res.status(400).json({ message: 'File size must be less than 10MB' });
+    }
+
+    const uniqueFileName = `${Date.now()}_${userId}_${sanitizedFileName}`;
+    const filePath = path.join(chatUploadsDir, uniqueFileName);
+    
+    fs.writeFileSync(filePath, buffer);
+
+    const fileUrl = `/uploads/chat/${uniqueFileName}`;
+    
+    res.json({ 
+      fileUrl, 
+      fileName: sanitizedFileName,
+      fileType: ext.replace('.', ''),
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to upload file' });
   }
 });
 

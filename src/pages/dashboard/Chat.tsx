@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, MessageCircle, User, Loader2, AlertCircle } from "lucide-react";
+import { Send, MessageCircle, Loader2, AlertCircle, Paperclip, Image, FileText, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ interface Message {
   receiverType: string;
   content: string;
   type: string;
+  fileUrl?: string;
+  fileName?: string;
   createdAt: string;
 }
 
@@ -36,7 +38,10 @@ export default function Chat() {
   const [sending, setSending] = useState(false);
   const [conversationId, setConversationId] = useState<string>("");
   const [leadId, setLeadId] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<{ name: string; url: string; type: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchCSCCenter();
@@ -94,12 +99,65 @@ export default function Chat() {
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size must be less than 10MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string;
+        
+        const response = await fetch("/api/user-chat/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            fileData: base64Data,
+            fileName: file.name,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSelectedFile({
+            name: data.fileName,
+            url: data.fileUrl,
+            type: data.fileType,
+          });
+          toast.success("File uploaded successfully");
+        } else {
+          const errorData = await response.json();
+          toast.error(errorData.message || "Failed to upload file");
+        }
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Failed to upload file:", error);
+      toast.error("Failed to upload file");
+      setUploading(false);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !cscCenter || !leadId) return;
+    if ((!newMessage.trim() && !selectedFile) || !cscCenter || !leadId) return;
 
     setSending(true);
     try {
+      const messageType = selectedFile ? (["jpg", "jpeg", "png", "gif"].includes(selectedFile.type) ? "image" : "file") : "text";
+      
       const response = await fetch("/api/user-chat/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,13 +165,17 @@ export default function Chat() {
         body: JSON.stringify({
           receiverId: cscCenter._id,
           receiverType: "csc",
-          content: newMessage.trim(),
+          content: newMessage.trim() || (selectedFile ? `Sent a ${messageType}` : ""),
+          type: messageType,
+          fileUrl: selectedFile?.url,
+          fileName: selectedFile?.name,
           leadId: leadId,
         }),
       });
 
       if (response.ok) {
         setNewMessage("");
+        setSelectedFile(null);
         fetchMessages();
       } else {
         const errorData = await response.json();
@@ -145,6 +207,58 @@ export default function Chat() {
       return "Yesterday";
     }
     return date.toLocaleDateString();
+  };
+
+  const isImageFile = (fileName?: string, type?: string) => {
+    if (type === "image") return true;
+    if (!fileName) return false;
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    return ["jpg", "jpeg", "png", "gif"].includes(ext || "");
+  };
+
+  const renderMessageContent = (message: Message) => {
+    const isUser = message.senderType === "user" || message.senderType === "lead";
+    
+    if (message.type === "image" || isImageFile(message.fileName, message.type)) {
+      return (
+        <div className="space-y-2">
+          {message.fileUrl && (
+            <a href={message.fileUrl} target="_blank" rel="noopener noreferrer">
+              <img 
+                src={message.fileUrl} 
+                alt={message.fileName || "Image"} 
+                className="max-w-[200px] rounded-lg cursor-pointer hover:opacity-90"
+              />
+            </a>
+          )}
+          {message.content && message.content !== "Sent a image" && (
+            <p className="text-sm">{message.content}</p>
+          )}
+        </div>
+      );
+    }
+
+    if (message.type === "file" && message.fileUrl) {
+      return (
+        <div className="space-y-2">
+          <a 
+            href={message.fileUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={`flex items-center gap-2 p-2 rounded ${isUser ? "bg-primary-foreground/10" : "bg-background"}`}
+          >
+            <FileText className="h-5 w-5" />
+            <span className="text-sm truncate max-w-[150px]">{message.fileName}</span>
+            <Download className="h-4 w-4" />
+          </a>
+          {message.content && message.content !== "Sent a file" && (
+            <p className="text-sm">{message.content}</p>
+          )}
+        </div>
+      );
+    }
+
+    return <p className="text-sm">{message.content}</p>;
   };
 
   if (loading) {
@@ -268,7 +382,7 @@ export default function Chat() {
                                 : "bg-muted"
                             }`}
                           >
-                            <p className="text-sm">{message.content}</p>
+                            {renderMessageContent(message)}
                             <p
                               className={`text-xs mt-1 ${
                                 isUser
@@ -287,10 +401,51 @@ export default function Chat() {
                 </div>
               )}
             </ScrollArea>
+            
+            {selectedFile && (
+              <div className="border-t p-2 bg-muted/50">
+                <div className="flex items-center gap-2 p-2 bg-background rounded">
+                  {isImageFile(selectedFile.name) ? (
+                    <Image className="h-5 w-5 text-primary" />
+                  ) : (
+                    <FileText className="h-5 w-5 text-primary" />
+                  )}
+                  <span className="text-sm flex-1 truncate">{selectedFile.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedFile(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            
             <form
               onSubmit={handleSendMessage}
               className="border-t p-4 flex gap-2"
             >
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx"
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || sending}
+              >
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
+              </Button>
               <Input
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
@@ -298,7 +453,7 @@ export default function Chat() {
                 disabled={sending}
                 className="flex-1"
               />
-              <Button type="submit" disabled={sending || !newMessage.trim()}>
+              <Button type="submit" disabled={sending || (!newMessage.trim() && !selectedFile)}>
                 {sending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (

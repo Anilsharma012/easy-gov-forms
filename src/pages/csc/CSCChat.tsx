@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Send, Paperclip, Search, Circle, User } from "lucide-react";
+import { MessageSquare, Send, Paperclip, Search, Circle, Loader2, FileText, Image, X, Download } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,7 +41,10 @@ const CSCChat = () => {
   const [sending, setSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [cscCenterId, setCscCenterId] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<{ name: string; url: string; type: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -100,11 +103,64 @@ const CSCChat = () => {
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Error", description: "File size must be less than 10MB", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string;
+        
+        const response = await fetch("/api/csc/dashboard/chat/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            fileData: base64Data,
+            fileName: file.name,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSelectedFile({
+            name: data.fileName,
+            url: data.fileUrl,
+            type: data.fileType,
+          });
+          toast({ title: "Success", description: "File uploaded successfully" });
+        } else {
+          const errorData = await response.json();
+          toast({ title: "Error", description: errorData.message || "Failed to upload file", variant: "destructive" });
+        }
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Failed to upload file:", error);
+      toast({ title: "Error", description: "Failed to upload file", variant: "destructive" });
+      setUploading(false);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedUser) return;
+    if ((!newMessage.trim() && !selectedFile) || !selectedUser) return;
 
     setSending(true);
     try {
+      const messageType = selectedFile ? (["jpg", "jpeg", "png", "gif"].includes(selectedFile.type) ? "image" : "file") : "text";
+      
       const response = await fetch("/api/csc/dashboard/chat/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,8 +168,10 @@ const CSCChat = () => {
         body: JSON.stringify({
           receiverId: selectedUser._id,
           receiverType: selectedUser.type || "lead",
-          content: newMessage,
-          type: "text",
+          content: newMessage.trim() || (selectedFile ? `Sent a ${messageType}` : ""),
+          type: messageType,
+          fileUrl: selectedFile?.url,
+          fileName: selectedFile?.name,
         }),
       });
 
@@ -121,6 +179,7 @@ const CSCChat = () => {
         const data = await response.json();
         setMessages([...messages, data.message]);
         setNewMessage("");
+        setSelectedFile(null);
         if (cscCenterId) {
           fetchMessages(selectedUser._id, cscCenterId);
         }
@@ -153,6 +212,58 @@ const CSCChat = () => {
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const isImageFile = (fileName?: string, type?: string) => {
+    if (type === "image") return true;
+    if (!fileName) return false;
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    return ["jpg", "jpeg", "png", "gif"].includes(ext || "");
+  };
+
+  const renderMessageContent = (msg: Message) => {
+    const isOwn = msg.senderId !== selectedUser?._id;
+    
+    if (msg.type === "image" || isImageFile(msg.fileName, msg.type)) {
+      return (
+        <div className="space-y-2">
+          {msg.fileUrl && (
+            <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
+              <img 
+                src={msg.fileUrl} 
+                alt={msg.fileName || "Image"} 
+                className="max-w-[200px] rounded-lg cursor-pointer hover:opacity-90"
+              />
+            </a>
+          )}
+          {msg.content && msg.content !== "Sent a image" && (
+            <p>{msg.content}</p>
+          )}
+        </div>
+      );
+    }
+
+    if (msg.type === "file" && msg.fileUrl) {
+      return (
+        <div className="space-y-2">
+          <a 
+            href={msg.fileUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={`flex items-center gap-2 p-2 rounded ${isOwn ? "bg-primary-foreground/10" : "bg-background"}`}
+          >
+            <FileText className="h-5 w-5" />
+            <span className="text-sm truncate max-w-[150px]">{msg.fileName}</span>
+            <Download className="h-4 w-4" />
+          </a>
+          {msg.content && msg.content !== "Sent a file" && (
+            <p>{msg.content}</p>
+          )}
+        </div>
+      );
+    }
+
+    return <p>{msg.content}</p>;
+  };
+
   return (
     <div className="h-[calc(100vh-12rem)]">
       <div className="flex items-center justify-between mb-4">
@@ -163,7 +274,6 @@ const CSCChat = () => {
       </div>
 
       <div className="flex gap-4 h-full">
-        {/* User List */}
         <Card className="w-80 flex flex-col">
           <CardHeader className="pb-2">
             <div className="relative">
@@ -223,7 +333,6 @@ const CSCChat = () => {
           </CardContent>
         </Card>
 
-        {/* Chat Area */}
         <Card className="flex-1 flex flex-col">
           {selectedUser ? (
             <>
@@ -263,7 +372,7 @@ const CSCChat = () => {
                                   : "bg-muted"
                               }`}
                             >
-                              <p>{msg.content}</p>
+                              {renderMessageContent(msg)}
                               <p className={`text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                                 {format(new Date(msg.createdAt), "hh:mm a")}
                               </p>
@@ -276,10 +385,47 @@ const CSCChat = () => {
                   )}
                 </ScrollArea>
               </CardContent>
+              
+              {selectedFile && (
+                <div className="border-t p-2 bg-muted/50">
+                  <div className="flex items-center gap-2 p-2 bg-background rounded">
+                    {isImageFile(selectedFile.name) ? (
+                      <Image className="h-5 w-5 text-primary" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-primary" />
+                    )}
+                    <span className="text-sm flex-1 truncate">{selectedFile.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedFile(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
               <div className="p-4 border-t">
                 <div className="flex gap-2">
-                  <Button variant="outline" size="icon">
-                    <Paperclip className="w-4 h-4" />
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx"
+                    className="hidden"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || sending}
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="w-4 h-4" />
+                    )}
                   </Button>
                   <Input
                     placeholder="Type a message..."
@@ -288,8 +434,12 @@ const CSCChat = () => {
                     onKeyPress={handleKeyPress}
                     disabled={sending}
                   />
-                  <Button onClick={sendMessage} disabled={sending || !newMessage.trim()}>
-                    <Send className="w-4 h-4" />
+                  <Button onClick={sendMessage} disabled={sending || (!newMessage.trim() && !selectedFile)}>
+                    {sending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
               </div>
