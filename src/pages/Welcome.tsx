@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,14 +21,23 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import SplashScreen from "@/components/layout/SplashScreen";
 
 const Welcome = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
+  useEffect(() => {
+    const splashSeen = sessionStorage.getItem("splash_seen");
+    if (splashSeen) {
+      setShowSplash(false);
+    }
+  }, []);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -69,6 +78,15 @@ const Welcome = () => {
     { value: "1,000+", label: "Jobs Listed" },
     { value: "24/7", label: "Support" },
   ];
+
+  const handleSplashComplete = () => {
+    sessionStorage.setItem("splash_seen", "true");
+    setShowSplash(false);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
 
   return (
     <div className="min-h-screen bg-white">
