@@ -489,6 +489,36 @@ router.get('/:id/documents/:docId/download', verifyToken, isAdmin, async (req: A
   }
 });
 
+router.patch('/:id/documents/:docId/status', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { status } = req.body;
+    if (!['verified', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    
+    const center = await CSCCenter.findById(req.params.id);
+    if (!center) {
+      return res.status(404).json({ message: 'Center not found' });
+    }
+    
+    const docIndex = center.documents.findIndex((d: any) => d._id?.toString() === req.params.docId);
+    if (docIndex === -1) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    
+    (center.documents[docIndex] as any).status = status;
+    if (status === 'verified') {
+      (center.documents[docIndex] as any).verifiedAt = new Date();
+    }
+    
+    await center.save();
+    
+    res.json({ message: `Document ${status} successfully`, document: center.documents[docIndex] });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update document status' });
+  }
+});
+
 router.post('/:id/request-verification', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { type, message } = req.body;

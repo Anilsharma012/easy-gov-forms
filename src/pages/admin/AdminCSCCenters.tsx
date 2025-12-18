@@ -345,6 +345,35 @@ export default function AdminCSCCenters() {
     }
   };
 
+  const handleUpdateDocumentStatus = async (centerId: string, docId: string, status: string) => {
+    try {
+      const response = await fetch(`/api/csc-centers/${centerId}/documents/${docId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status }),
+      });
+      if (response.ok) {
+        toast.success(`Document ${status} successfully`);
+        fetchCenters();
+        if (selectedCenter) {
+          const updatedCenter = centers.find(c => c._id === centerId);
+          if (updatedCenter) {
+            setSelectedCenter({
+              ...selectedCenter,
+              documents: selectedCenter.documents?.map(doc => 
+                doc._id === docId ? { ...doc, status } : doc
+              )
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update document status:", error);
+      toast.error("Failed to update document status");
+    }
+  };
+
   const handleAssignLeads = async () => {
     if (!selectedCenter || selectedLeads.length === 0) return;
     try {
@@ -726,6 +755,28 @@ export default function AdminCSCCenters() {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
+                          {doc.status === 'pending' && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-success hover:text-success hover:bg-success/10"
+                                onClick={() => handleUpdateDocumentStatus(selectedCenter._id, doc._id!, 'verified')}
+                                title="Approve Document"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleUpdateDocumentStatus(selectedCenter._id, doc._id!, 'rejected')}
+                                title="Reject Document"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
