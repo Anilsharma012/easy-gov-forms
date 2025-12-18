@@ -685,7 +685,7 @@ export default function AdminCSCCenters() {
                   <h4 className="font-semibold mb-3">Documents</h4>
                   <div className="space-y-2">
                     {selectedCenter.documents.map((doc, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded">
+                      <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded">
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-muted-foreground" />
                           <div>
@@ -693,13 +693,40 @@ export default function AdminCSCCenters() {
                             <p className="text-xs text-muted-foreground">{doc.originalFileName}</p>
                           </div>
                         </div>
-                        <Badge variant="outline" className={
-                          doc.status === 'verified' ? 'bg-success/10 text-success' :
-                          doc.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                          'bg-warning/10 text-warning'
-                        }>
-                          {doc.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={
+                            doc.status === 'verified' ? 'bg-success/10 text-success' :
+                            doc.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                            'bg-warning/10 text-warning'
+                          }>
+                            {doc.status}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => window.open(`/api/csc-centers/${selectedCenter._id}/documents/${doc._id}/view`, '_blank')}
+                            title="View Document"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = `/api/csc-centers/${selectedCenter._id}/documents/${doc._id}/download`;
+                              link.download = doc.originalFileName;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            title="Download Document"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

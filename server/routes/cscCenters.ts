@@ -434,6 +434,61 @@ router.get('/:id/documents', verifyToken, isAdmin, async (req: AuthRequest, res:
   }
 });
 
+router.get('/:id/documents/:docId/view', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const center = await CSCCenter.findById(req.params.id);
+    if (!center) {
+      return res.status(404).json({ message: 'Center not found' });
+    }
+    
+    const doc = center.documents.find((d: any) => d._id?.toString() === req.params.docId);
+    if (!doc) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    
+    const filePath = path.join(process.cwd(), doc.filePath);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found on server' });
+    }
+    
+    const ext = path.extname(doc.fileName).toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+    else if (ext === '.png') contentType = 'image/png';
+    else if (ext === '.pdf') contentType = 'application/pdf';
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${doc.originalFileName}"`);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to view document' });
+  }
+});
+
+router.get('/:id/documents/:docId/download', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const center = await CSCCenter.findById(req.params.id);
+    if (!center) {
+      return res.status(404).json({ message: 'Center not found' });
+    }
+    
+    const doc = center.documents.find((d: any) => d._id?.toString() === req.params.docId);
+    if (!doc) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    
+    const filePath = path.join(process.cwd(), doc.filePath);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found on server' });
+    }
+    
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.originalFileName}"`);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to download document' });
+  }
+});
+
 router.post('/:id/request-verification', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { type, message } = req.body;
