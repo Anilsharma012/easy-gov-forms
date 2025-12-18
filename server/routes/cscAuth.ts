@@ -3,14 +3,42 @@ import bcrypt from 'bcryptjs';
 import { CSCCenter } from '../models/CSCCenter';
 import { User } from '../models/User';
 import { verifyToken, isCSC, AuthRequest, generateToken } from '../middleware/auth';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
+
+const cscUploadsDir = path.join(process.cwd(), 'uploads', 'csc');
+if (!fs.existsSync(cscUploadsDir)) {
+  fs.mkdirSync(cscUploadsDir, { recursive: true });
+}
+
+function saveBase64File(base64Data: string, fileName: string, centerId: string): { fileName: string; filePath: string } {
+  const centerDir = path.join(cscUploadsDir, centerId);
+  if (!fs.existsSync(centerDir)) {
+    fs.mkdirSync(centerDir, { recursive: true });
+  }
+  
+  const cleanBase64 = base64Data.replace(/^data:.*;base64,/, '');
+  const buffer = Buffer.from(cleanBase64, 'base64');
+  const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.\./g, '');
+  const uniqueFileName = `${Date.now()}_${sanitizedFileName}`;
+  const fullPath = path.join(centerDir, uniqueFileName);
+  
+  fs.writeFileSync(fullPath, buffer);
+  
+  return {
+    fileName: uniqueFileName,
+    filePath: `/uploads/csc/${centerId}/${uniqueFileName}`,
+  };
+}
 
 router.post('/register', async (req, res: Response) => {
   try {
     const { 
       centerName, ownerName, email, mobile, password, 
-      address, district, state, pincode, cscId 
+      address, district, state, pincode, cscId, registrationNumber,
+      addressProof, identityProof, photo
     } = req.body;
 
     const existingCenter = await CSCCenter.findOne({ email });
@@ -30,12 +58,51 @@ router.post('/register', async (req, res: Response) => {
       name: ownerName,
       email,
       phone: mobile,
-      password,
+      password: hashedPassword,
       role: 'csc',
       city: district,
       state,
     });
     await user.save();
+
+    const tempCenterId = user._id.toString();
+    const documents: any[] = [];
+    
+    if (addressProof && addressProof.fileData && addressProof.fileName) {
+      const saved = saveBase64File(addressProof.fileData, addressProof.fileName, tempCenterId);
+      documents.push({
+        type: 'addressProof',
+        fileName: saved.fileName,
+        originalFileName: addressProof.fileName,
+        filePath: saved.filePath,
+        status: 'pending',
+        uploadedAt: new Date(),
+      });
+    }
+    
+    if (identityProof && identityProof.fileData && identityProof.fileName) {
+      const saved = saveBase64File(identityProof.fileData, identityProof.fileName, tempCenterId);
+      documents.push({
+        type: 'identityProof',
+        fileName: saved.fileName,
+        originalFileName: identityProof.fileName,
+        filePath: saved.filePath,
+        status: 'pending',
+        uploadedAt: new Date(),
+      });
+    }
+    
+    if (photo && photo.fileData && photo.fileName) {
+      const saved = saveBase64File(photo.fileData, photo.fileName, tempCenterId);
+      documents.push({
+        type: 'photo',
+        fileName: saved.fileName,
+        originalFileName: photo.fileName,
+        filePath: saved.filePath,
+        status: 'pending',
+        uploadedAt: new Date(),
+      });
+    }
 
     const cscCenter = new CSCCenter({
       userId: user._id,
@@ -49,7 +116,9 @@ router.post('/register', async (req, res: Response) => {
       state,
       pincode,
       cscId,
+      registrationNumber,
       status: 'pending',
+      documents,
     });
     await cscCenter.save();
 

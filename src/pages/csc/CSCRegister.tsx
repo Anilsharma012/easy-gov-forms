@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, User, Mail, Phone, Lock, Eye, EyeOff, MapPin, FileText } from "lucide-react";
+import { Building2, User, Mail, Phone, Lock, Eye, EyeOff, MapPin, FileText, Upload, Image, IdCard, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+interface FileUpload {
+  fileName: string;
+  fileData: string;
+}
 
 const CSCRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -23,10 +28,55 @@ const CSCRegister = () => {
     state: "",
     pincode: "",
     cscId: "",
+    registrationNumber: "",
   });
+  
+  const [addressProof, setAddressProof] = useState<FileUpload | null>(null);
+  const [identityProof, setIdentityProof] = useState<FileUpload | null>(null);
+  const [photo, setPhoto] = useState<FileUpload | null>(null);
+  
+  const addressProofRef = useRef<HTMLInputElement>(null);
+  const identityProofRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handleFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    setFile: React.Dispatch<React.SetStateAction<FileUpload | null>>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload JPG, PNG or PDF files only",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "File size should be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFile({
+        fileName: file.name,
+        fileData: reader.result as string,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +90,24 @@ const CSCRegister = () => {
       return;
     }
 
+    if (!formData.registrationNumber) {
+      toast({
+        title: "Registration Number Required",
+        description: "Please enter your CSC registration number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!addressProof || !identityProof || !photo) {
+      toast({
+        title: "Documents Required",
+        description: "Please upload all required documents (Address Proof, Identity Proof, Photo)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -47,7 +115,12 @@ const CSCRegister = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          addressProof,
+          identityProof,
+          photo,
+        }),
       });
 
       const data = await response.json();
@@ -88,7 +161,7 @@ const CSCRegister = () => {
                 </div>
                 <div>
                   <p className="font-medium">Register Your Center</p>
-                  <p className="text-sm text-white/70">Provide your CSC details</p>
+                  <p className="text-sm text-white/70">Provide your CSC details & documents</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
@@ -201,18 +274,36 @@ const CSCRegister = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cscId">CSC ID (Optional)</Label>
-              <div className="relative">
-                <FileText className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="cscId"
-                  type="text"
-                  placeholder="Your official CSC ID if available"
-                  className="pl-10"
-                  value={formData.cscId}
-                  onChange={(e) => setFormData({ ...formData, cscId: e.target.value })}
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="registrationNumber">Registration Number *</Label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="registrationNumber"
+                    type="text"
+                    placeholder="Your CSC registration number"
+                    className="pl-10"
+                    value={formData.registrationNumber}
+                    onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cscId">CSC ID (Optional)</Label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="cscId"
+                    type="text"
+                    placeholder="Your official CSC ID"
+                    className="pl-10"
+                    value={formData.cscId}
+                    onChange={(e) => setFormData({ ...formData, cscId: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
 
@@ -267,6 +358,105 @@ const CSCRegister = () => {
                   required
                 />
               </div>
+            </div>
+
+            <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+              <h3 className="font-semibold text-foreground flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Required Documents
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Home className="h-4 w-4" />
+                    Address Proof *
+                  </Label>
+                  <input
+                    ref={addressProofRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(e, setAddressProof)}
+                  />
+                  <Button
+                    type="button"
+                    variant={addressProof ? "default" : "outline"}
+                    className="w-full"
+                    onClick={() => addressProofRef.current?.click()}
+                  >
+                    {addressProof ? (
+                      <span className="truncate text-xs">{addressProof.fileName}</span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        Upload
+                      </span>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <IdCard className="h-4 w-4" />
+                    Identity Proof *
+                  </Label>
+                  <input
+                    ref={identityProofRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(e, setIdentityProof)}
+                  />
+                  <Button
+                    type="button"
+                    variant={identityProof ? "default" : "outline"}
+                    className="w-full"
+                    onClick={() => identityProofRef.current?.click()}
+                  >
+                    {identityProof ? (
+                      <span className="truncate text-xs">{identityProof.fileName}</span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        Upload
+                      </span>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Image className="h-4 w-4" />
+                    Photo *
+                  </Label>
+                  <input
+                    ref={photoRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(e, setPhoto)}
+                  />
+                  <Button
+                    type="button"
+                    variant={photo ? "default" : "outline"}
+                    className="w-full"
+                    onClick={() => photoRef.current?.click()}
+                  >
+                    {photo ? (
+                      <span className="truncate text-xs">{photo.fileName}</span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        Upload
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Accepted formats: JPG, PNG, PDF (Max 5MB each)
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Search,
   Plus,
@@ -10,6 +10,11 @@ import {
   Download,
   Users,
   BarChart3,
+  FileText,
+  Upload,
+  Image,
+  IdCard,
+  Home,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +53,21 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
+interface FileUpload {
+  fileName: string;
+  fileData: string;
+}
+
+interface CSCDocument {
+  _id?: string;
+  type: string;
+  fileName: string;
+  originalFileName: string;
+  filePath: string;
+  status: string;
+  uploadedAt: string;
+}
+
 interface CSCCenter {
   _id: string;
   centerName: string;
@@ -61,14 +81,24 @@ interface CSCCenter {
   totalLeads: number;
   usedLeads: number;
   registeredAt: string;
+  registrationNumber?: string;
+  documents?: CSCDocument[];
 }
 
 interface Lead {
   _id: string;
   name: string;
   mobile: string;
+  email?: string;
   formName: string;
   type: string;
+  status: string;
+  createdAt: string;
+  userId?: {
+    name: string;
+    email: string;
+    phone: string;
+  };
 }
 
 interface Performance {
@@ -80,10 +110,40 @@ interface Performance {
   completionRate: string;
 }
 
+interface LeadsData {
+  center: {
+    _id: string;
+    centerName: string;
+    ownerName: string;
+  };
+  leads: Lead[];
+  stats: {
+    total: number;
+    new: number;
+    inProgress: number;
+    completed: number;
+    cancelled: number;
+  };
+}
+
 const statusColors = {
   verified: "bg-success/10 text-success border-success/20",
   pending: "bg-warning/10 text-warning border-warning/20",
   rejected: "bg-destructive/10 text-destructive border-destructive/20",
+};
+
+const leadStatusColors: Record<string, string> = {
+  new: "bg-info/10 text-info border-info/20",
+  "in-progress": "bg-warning/10 text-warning border-warning/20",
+  completed: "bg-success/10 text-success border-success/20",
+  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+};
+
+const documentTypeLabels: Record<string, string> = {
+  addressProof: "Address Proof",
+  identityProof: "Identity Proof",
+  photo: "Photo",
+  other: "Other",
 };
 
 export default function AdminCSCCenters() {
@@ -96,11 +156,23 @@ export default function AdminCSCCenters() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [assignLeadsDialogOpen, setAssignLeadsDialogOpen] = useState(false);
   const [performanceDialogOpen, setPerformanceDialogOpen] = useState(false);
+  const [leadsDialogOpen, setLeadsDialogOpen] = useState(false);
   const [unassignedLeads, setUnassignedLeads] = useState<Lead[]>([]);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [performance, setPerformance] = useState<Performance | null>(null);
+  const [leadsData, setLeadsData] = useState<LeadsData | null>(null);
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [loadingPerformance, setLoadingPerformance] = useState(false);
+  const [loadingCenterLeads, setLoadingCenterLeads] = useState(false);
+  
+  const [addressProof, setAddressProof] = useState<FileUpload | null>(null);
+  const [identityProof, setIdentityProof] = useState<FileUpload | null>(null);
+  const [photo, setPhoto] = useState<FileUpload | null>(null);
+  
+  const addressProofRef = useRef<HTMLInputElement>(null);
+  const identityProofRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  
   const [newCenter, setNewCenter] = useState({
     centerName: "",
     ownerName: "",
@@ -109,6 +181,7 @@ export default function AdminCSCCenters() {
     address: "",
     district: "",
     state: "",
+    registrationNumber: "",
   });
 
   useEffect(() => {
@@ -168,13 +241,64 @@ export default function AdminCSCCenters() {
     }
   };
 
+  const fetchCenterLeads = async (centerId: string) => {
+    setLoadingCenterLeads(true);
+    try {
+      const response = await fetch(`/api/csc-centers/${centerId}/leads`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLeadsData(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch center leads:", error);
+      toast.error("Failed to fetch center leads");
+    } finally {
+      setLoadingCenterLeads(false);
+    }
+  };
+
+  const handleFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    setFile: React.Dispatch<React.SetStateAction<FileUpload | null>>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload JPG, PNG or PDF files only");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size should be less than 5MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFile({
+        fileName: file.name,
+        fileData: reader.result as string,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAddCenter = async () => {
     try {
       const response = await fetch("/api/csc-centers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(newCenter),
+        body: JSON.stringify({
+          ...newCenter,
+          addressProof,
+          identityProof,
+          photo,
+        }),
       });
       if (response.ok) {
         toast.success("Center added successfully");
@@ -187,7 +311,11 @@ export default function AdminCSCCenters() {
           address: "",
           district: "",
           state: "",
+          registrationNumber: "",
         });
+        setAddressProof(null);
+        setIdentityProof(null);
+        setPhoto(null);
         fetchCenters();
       } else {
         const data = await response.json();
@@ -434,6 +562,16 @@ export default function AdminCSCCenters() {
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedCenter(center);
+                              fetchCenterLeads(center._id);
+                              setLeadsDialogOpen(true);
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Leads
+                          </DropdownMenuItem>
                           {center.status === "pending" && (
                             <>
                               <DropdownMenuItem
@@ -490,7 +628,7 @@ export default function AdminCSCCenters() {
       </Card>
 
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>CSC Center Details</DialogTitle>
             <DialogDescription>Complete information about the center.</DialogDescription>
@@ -520,6 +658,12 @@ export default function AdminCSCCenters() {
                   <p className="text-sm text-muted-foreground">Mobile</p>
                   <p>{selectedCenter.mobile}</p>
                 </div>
+                {selectedCenter.registrationNumber && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground">Registration Number</p>
+                    <p className="font-medium">{selectedCenter.registrationNumber}</p>
+                  </div>
+                )}
                 <div className="col-span-2">
                   <p className="text-sm text-muted-foreground">Address</p>
                   <p>
@@ -535,13 +679,39 @@ export default function AdminCSCCenters() {
                   <p>{selectedCenter.usedLeads || 0} used / {selectedCenter.totalLeads || 0} total</p>
                 </div>
               </div>
+              
+              {selectedCenter.documents && selectedCenter.documents.length > 0 && (
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold mb-3">Documents</h4>
+                  <div className="space-y-2">
+                    {selectedCenter.documents.map((doc, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">{documentTypeLabels[doc.type] || doc.type}</p>
+                            <p className="text-xs text-muted-foreground">{doc.originalFileName}</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className={
+                          doc.status === 'verified' ? 'bg-success/10 text-success' :
+                          doc.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                          'bg-warning/10 text-warning'
+                        }>
+                          {doc.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
       </Dialog>
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New CSC Center</DialogTitle>
             <DialogDescription>Enter the details of the new center.</DialogDescription>
@@ -586,6 +756,14 @@ export default function AdminCSCCenters() {
                 />
               </div>
               <div className="col-span-2">
+                <Label>Registration Number</Label>
+                <Input
+                  value={newCenter.registrationNumber}
+                  onChange={(e) => setNewCenter({ ...newCenter, registrationNumber: e.target.value })}
+                  placeholder="Enter CSC registration number"
+                />
+              </div>
+              <div className="col-span-2">
                 <Label>Address</Label>
                 <Input
                   value={newCenter.address}
@@ -614,6 +792,85 @@ export default function AdminCSCCenters() {
                 />
               </div>
             </div>
+            
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Documents (Optional)
+              </h4>
+              
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1 text-xs">
+                    <Home className="h-3 w-3" />
+                    Address Proof
+                  </Label>
+                  <input
+                    ref={addressProofRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(e, setAddressProof)}
+                  />
+                  <Button
+                    type="button"
+                    variant={addressProof ? "default" : "outline"}
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => addressProofRef.current?.click()}
+                  >
+                    {addressProof ? "Uploaded" : "Upload"}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1 text-xs">
+                    <IdCard className="h-3 w-3" />
+                    Identity Proof
+                  </Label>
+                  <input
+                    ref={identityProofRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(e, setIdentityProof)}
+                  />
+                  <Button
+                    type="button"
+                    variant={identityProof ? "default" : "outline"}
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => identityProofRef.current?.click()}
+                  >
+                    {identityProof ? "Uploaded" : "Upload"}
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1 text-xs">
+                    <Image className="h-3 w-3" />
+                    Photo
+                  </Label>
+                  <input
+                    ref={photoRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={(e) => handleFileChange(e, setPhoto)}
+                  />
+                  <Button
+                    type="button"
+                    variant={photo ? "default" : "outline"}
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => photoRef.current?.click()}
+                  >
+                    {photo ? "Uploaded" : "Upload"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
                 Cancel
@@ -621,6 +878,106 @@ export default function AdminCSCCenters() {
               <Button onClick={handleAddCenter}>Add Center</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={leadsDialogOpen} onOpenChange={setLeadsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Assigned Leads</DialogTitle>
+            <DialogDescription>
+              Leads assigned to {leadsData?.center?.centerName}
+            </DialogDescription>
+          </DialogHeader>
+          {loadingCenterLeads ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          ) : leadsData ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-5 gap-2">
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <p className="text-xl font-bold">{leadsData.stats.total}</p>
+                    <p className="text-xs text-muted-foreground">Total</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <p className="text-xl font-bold text-info">{leadsData.stats.new}</p>
+                    <p className="text-xs text-muted-foreground">New</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <p className="text-xl font-bold text-warning">{leadsData.stats.inProgress}</p>
+                    <p className="text-xs text-muted-foreground">In Progress</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <p className="text-xl font-bold text-success">{leadsData.stats.completed}</p>
+                    <p className="text-xs text-muted-foreground">Completed</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <p className="text-xl font-bold text-destructive">{leadsData.stats.cancelled}</p>
+                    <p className="text-xs text-muted-foreground">Cancelled</p>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              {leadsData.leads.length > 0 ? (
+                <div className="rounded-md border max-h-80 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Lead</TableHead>
+                        <TableHead>Form</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {leadsData.leads.map((lead) => (
+                        <TableRow key={lead._id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{lead.name}</p>
+                              <p className="text-xs text-muted-foreground">{lead.mobile}</p>
+                              {lead.email && <p className="text-xs text-muted-foreground">{lead.email}</p>}
+                            </div>
+                          </TableCell>
+                          <TableCell>{lead.formName}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{lead.type}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={leadStatusColors[lead.status] || ""}>
+                              {lead.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(lead.createdAt).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No leads assigned to this center
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              Failed to load leads data
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

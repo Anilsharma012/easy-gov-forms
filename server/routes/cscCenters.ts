@@ -5,8 +5,35 @@ import { CSCLeadPackage } from '../models/CSCLeadPackage';
 import { CSCPackageAssignment } from '../models/CSCPackageAssignment';
 import { verifyToken, isAdmin, AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
+
+const cscUploadsDir = path.join(process.cwd(), 'uploads', 'csc');
+if (!fs.existsSync(cscUploadsDir)) {
+  fs.mkdirSync(cscUploadsDir, { recursive: true });
+}
+
+function saveBase64File(base64Data: string, fileName: string, centerId: string): { fileName: string; filePath: string } {
+  const centerDir = path.join(cscUploadsDir, centerId);
+  if (!fs.existsSync(centerDir)) {
+    fs.mkdirSync(centerDir, { recursive: true });
+  }
+  
+  const cleanBase64 = base64Data.replace(/^data:.*;base64,/, '');
+  const buffer = Buffer.from(cleanBase64, 'base64');
+  const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.\./g, '');
+  const uniqueFileName = `${Date.now()}_${sanitizedFileName}`;
+  const fullPath = path.join(centerDir, uniqueFileName);
+  
+  fs.writeFileSync(fullPath, buffer);
+  
+  return {
+    fileName: uniqueFileName,
+    filePath: `/uploads/csc/${centerId}/${uniqueFileName}`,
+  };
+}
 
 router.get('/', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
   try {
@@ -185,10 +212,52 @@ router.get('/:id', verifyToken, isAdmin, async (req: AuthRequest, res: Response)
 
 router.post('/', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { centerName, ownerName, email, mobile, address, district, state, pincode } = req.body;
+    const { 
+      centerName, ownerName, email, mobile, address, district, state, pincode,
+      registrationNumber, addressProof, identityProof, photo
+    } = req.body;
     
     const salt = await bcrypt.genSalt(10);
     const defaultPassword = await bcrypt.hash('csc123456', salt);
+    
+    const tempCenterId = `admin_${Date.now()}`;
+    const documents: any[] = [];
+    
+    if (addressProof && addressProof.fileData && addressProof.fileName) {
+      const saved = saveBase64File(addressProof.fileData, addressProof.fileName, tempCenterId);
+      documents.push({
+        type: 'addressProof',
+        fileName: saved.fileName,
+        originalFileName: addressProof.fileName,
+        filePath: saved.filePath,
+        status: 'pending',
+        uploadedAt: new Date(),
+      });
+    }
+    
+    if (identityProof && identityProof.fileData && identityProof.fileName) {
+      const saved = saveBase64File(identityProof.fileData, identityProof.fileName, tempCenterId);
+      documents.push({
+        type: 'identityProof',
+        fileName: saved.fileName,
+        originalFileName: identityProof.fileName,
+        filePath: saved.filePath,
+        status: 'pending',
+        uploadedAt: new Date(),
+      });
+    }
+    
+    if (photo && photo.fileData && photo.fileName) {
+      const saved = saveBase64File(photo.fileData, photo.fileName, tempCenterId);
+      documents.push({
+        type: 'photo',
+        fileName: saved.fileName,
+        originalFileName: photo.fileName,
+        filePath: saved.filePath,
+        status: 'pending',
+        uploadedAt: new Date(),
+      });
+    }
     
     const center = new CSCCenter({
       centerName,
@@ -200,7 +269,9 @@ router.post('/', verifyToken, isAdmin, async (req: AuthRequest, res: Response) =
       state,
       pincode: pincode || '000000',
       password: defaultPassword,
+      registrationNumber,
       status: 'pending',
+      documents,
     });
     
     await center.save();
@@ -306,6 +377,60 @@ router.get('/:id/performance', verifyToken, isAdmin, async (req: AuthRequest, re
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to fetch performance' });
+  }
+});
+
+router.get('/:id/leads', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const center = await CSCCenter.findById(req.params.id);
+    if (!center) {
+      return res.status(404).json({ message: 'Center not found' });
+    }
+    
+    const leads = await Lead.find({ assignedCenterId: center._id })
+      .populate('userId', 'name email phone')
+      .sort({ createdAt: -1 });
+    
+    const stats = {
+      total: leads.length,
+      new: leads.filter(l => l.status === 'new').length,
+      inProgress: leads.filter(l => l.status === 'in-progress').length,
+      completed: leads.filter(l => l.status === 'completed').length,
+      cancelled: leads.filter(l => l.status === 'cancelled').length,
+    };
+    
+    res.json({ 
+      center: {
+        _id: center._id,
+        centerName: center.centerName,
+        ownerName: center.ownerName,
+      },
+      leads,
+      stats,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch leads' });
+  }
+});
+
+router.get('/:id/documents', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const center = await CSCCenter.findById(req.params.id).select('centerName ownerName documents registrationNumber');
+    if (!center) {
+      return res.status(404).json({ message: 'Center not found' });
+    }
+    
+    res.json({ 
+      center: {
+        _id: center._id,
+        centerName: center.centerName,
+        ownerName: center.ownerName,
+        registrationNumber: center.registrationNumber,
+      },
+      documents: center.documents,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch documents' });
   }
 });
 

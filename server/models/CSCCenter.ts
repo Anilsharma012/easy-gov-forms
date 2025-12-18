@@ -10,6 +10,15 @@ export interface IVerificationRequest {
   fileUrl?: string;
 }
 
+export interface ICSCCenterDocument {
+  type: 'addressProof' | 'identityProof' | 'photo' | 'other';
+  fileName: string;
+  originalFileName: string;
+  filePath: string;
+  status: 'pending' | 'verified' | 'rejected';
+  uploadedAt: Date;
+}
+
 export interface ICSCCenter extends Document {
   userId: mongoose.Types.ObjectId;
   centerName: string;
@@ -22,6 +31,7 @@ export interface ICSCCenter extends Document {
   state: string;
   pincode: string;
   cscId?: string;
+  registrationNumber?: string;
   status: 'verified' | 'pending' | 'rejected';
   rejectionReason?: string;
   verificationRequests: IVerificationRequest[];
@@ -29,12 +39,7 @@ export interface ICSCCenter extends Document {
   totalLeads: number;
   usedLeads: number;
   totalEarnings: number;
-  documents: {
-    type: string;
-    fileName: string;
-    filePath: string;
-    status: 'pending' | 'verified' | 'rejected';
-  }[];
+  documents: ICSCCenterDocument[];
   registeredAt: Date;
   verifiedAt?: Date;
   createdAt: Date;
@@ -50,6 +55,15 @@ const verificationRequestSchema = new Schema({
   fileUrl: { type: String },
 });
 
+const cscDocumentSchema = new Schema({
+  type: { type: String, enum: ['addressProof', 'identityProof', 'photo', 'other'], required: true },
+  fileName: { type: String, required: true },
+  originalFileName: { type: String, required: true },
+  filePath: { type: String, required: true },
+  status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
+  uploadedAt: { type: Date, default: Date.now },
+});
+
 const cscCenterSchema = new Schema<ICSCCenter>({
   userId: { type: Schema.Types.ObjectId, ref: 'User' },
   centerName: { type: String, required: true },
@@ -62,6 +76,7 @@ const cscCenterSchema = new Schema<ICSCCenter>({
   state: { type: String, required: true },
   pincode: { type: String, required: true },
   cscId: { type: String },
+  registrationNumber: { type: String },
   status: { type: String, enum: ['verified', 'pending', 'rejected'], default: 'pending' },
   rejectionReason: { type: String },
   verificationRequests: [verificationRequestSchema],
@@ -69,12 +84,7 @@ const cscCenterSchema = new Schema<ICSCCenter>({
   totalLeads: { type: Number, default: 0 },
   usedLeads: { type: Number, default: 0 },
   totalEarnings: { type: Number, default: 0 },
-  documents: [{
-    type: { type: String },
-    fileName: { type: String },
-    filePath: { type: String },
-    status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
-  }],
+  documents: [cscDocumentSchema],
   registeredAt: { type: Date, default: Date.now },
   verifiedAt: { type: Date },
 }, { timestamps: true });
