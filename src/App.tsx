@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { PWAInstallButton } from "@/components/PWAInstallButton";
 import Index from "./pages/Index";
 import Welcome from "./pages/Welcome";
 import Login from "./pages/Login";
@@ -82,6 +83,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <PWAInstallButton />
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Welcome />} />
