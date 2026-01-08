@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PWAInstallButton } from "@/components/PWAInstallButton";
 import Index from "./pages/Index";
+import MobileHome from "./pages/MobileHome";
 import Welcome from "./pages/Welcome";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -87,7 +88,7 @@ const App = () => (
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Welcome />} />
-            <Route path="/home" element={<Index />} />
+            <Route path="/home" element={<MobileHome />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin/login" element={<AdminLogin />} />

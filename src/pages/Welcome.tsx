@@ -166,9 +166,10 @@ const Welcome = () => {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
-                <Link to="/govt-jobs">
+                <Link to="/home">
                   <Button size="lg" variant="outline" className="border-gray-300">
-                    Browse Jobs
+                    Skip & Browse
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
               </div>
