@@ -22,11 +22,13 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import SplashScreen from "@/components/layout/SplashScreen";
+import MobileHome from "./MobileHome";
 
 const Welcome = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -37,6 +39,13 @@ const Welcome = () => {
     if (splashSeen) {
       setShowSplash(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   const { login } = useAuth();
@@ -86,6 +95,10 @@ const Welcome = () => {
 
   if (showSplash) {
     return <SplashScreen onComplete={handleSplashComplete} />;
+  }
+
+  if (isMobile) {
+    return <MobileHome />;
   }
 
   return (
