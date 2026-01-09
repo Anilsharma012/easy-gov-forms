@@ -18,6 +18,8 @@ import cscAuthRoutes from './routes/cscAuth';
 import cscDashboardRoutes from './routes/cscDashboard';
 import userKycRoutes from './routes/userKyc';
 import userChatRoutes from './routes/userChat';
+import publicRoutes from './routes/public';
+import { seedFormsAndBanners } from './scripts/seedFormsAndBanners';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -47,6 +49,7 @@ app.use('/api/csc/auth', cscAuthRoutes);
 app.use('/api/csc/dashboard', cscDashboardRoutes);
 app.use('/api/kyc', userKycRoutes);
 app.use('/api/user-chat', userChatRoutes);
+app.use('/api/public', publicRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
@@ -55,6 +58,7 @@ app.get('/api/health', (req, res) => {
 async function startServer() {
   try {
     await connectDB();
+    await seedFormsAndBanners();
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

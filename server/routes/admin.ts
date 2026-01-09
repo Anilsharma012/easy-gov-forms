@@ -4,7 +4,10 @@ import { UserDocument } from '../models/UserDocument';
 import { UserPackage } from '../models/UserPackage';
 import { WalletTransaction } from '../models/WalletTransaction';
 import { CSCWallet } from '../models/CSCWallet';
+import IndianGovForm from '../models/IndianGovForm';
+import UrgentBanner from '../models/UrgentBanner';
 import { verifyToken, isAdmin, AuthRequest } from '../middleware/auth';
+import { seedFormsAndBanners } from '../scripts/seedFormsAndBanners';
 
 const router = Router();
 
@@ -319,6 +322,113 @@ router.patch('/withdrawals/:id/reject', verifyToken, isAdmin, async (req: AuthRe
     res.json({ message: 'Withdrawal rejected and amount refunded to wallet', withdrawal });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to reject withdrawal' });
+  }
+});
+
+// ===== INDIAN GOVERNMENT FORMS ROUTES =====
+
+router.get('/forms', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const forms = await IndianGovForm.find().sort({ order: 1, createdAt: -1 });
+    res.json({ forms });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch forms' });
+  }
+});
+
+router.post('/forms', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const form = new IndianGovForm(req.body);
+    await form.save();
+    res.status(201).json({ message: 'Form created successfully', form });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to create form' });
+  }
+});
+
+router.patch('/forms/:id', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const form = await IndianGovForm.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    );
+    if (!form) {
+      return res.status(404).json({ message: 'Form not found' });
+    }
+    res.json({ message: 'Form updated successfully', form });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update form' });
+  }
+});
+
+router.delete('/forms/:id', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const form = await IndianGovForm.findByIdAndDelete(req.params.id);
+    if (!form) {
+      return res.status(404).json({ message: 'Form not found' });
+    }
+    res.json({ message: 'Form deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to delete form' });
+  }
+});
+
+// ===== URGENT BANNERS ROUTES =====
+
+router.get('/banners', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const banners = await UrgentBanner.find().sort({ priority: -1, createdAt: -1 });
+    res.json({ banners });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to fetch banners' });
+  }
+});
+
+router.post('/banners', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const banner = new UrgentBanner(req.body);
+    await banner.save();
+    res.status(201).json({ message: 'Banner created successfully', banner });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to create banner' });
+  }
+});
+
+router.patch('/banners/:id', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const banner = await UrgentBanner.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    );
+    if (!banner) {
+      return res.status(404).json({ message: 'Banner not found' });
+    }
+    res.json({ message: 'Banner updated successfully', banner });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to update banner' });
+  }
+});
+
+router.delete('/banners/:id', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const banner = await UrgentBanner.findByIdAndDelete(req.params.id);
+    if (!banner) {
+      return res.status(404).json({ message: 'Banner not found' });
+    }
+    res.json({ message: 'Banner deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to delete banner' });
+  }
+});
+
+router.post('/seed-forms-banners', verifyToken, isAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await seedFormsAndBanners();
+    res.json({ message: 'Seed completed', ...result });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to seed data' });
   }
 });
 

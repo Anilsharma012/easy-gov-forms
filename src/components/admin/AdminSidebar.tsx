@@ -18,6 +18,8 @@ import {
   FileCheck,
   Wallet,
   ShieldCheck,
+  ClipboardList,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -60,6 +62,8 @@ const menuItems = [
       { title: "Withdrawals", icon: Wallet, url: "/admin/withdrawals" },
       { title: "Support Tickets", icon: LifeBuoy, url: "/admin/support" },
       { title: "Content", icon: FileText, url: "/admin/content" },
+      { title: "Gov Forms", icon: ClipboardList, url: "/admin/forms" },
+      { title: "Urgent Banners", icon: Bell, url: "/admin/banners" },
       { title: "Legal & Policies", icon: Scale, url: "/admin/legal" },
     ],
   },
