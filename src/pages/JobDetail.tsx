@@ -1,8 +1,9 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
-import { mockJobs } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Calendar,
   MapPin,
@@ -14,13 +15,87 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
+
+interface Job {
+  _id: string;
+  title: string;
+  department: string;
+  category: string;
+  location: string;
+  eligibility: string;
+  description?: string;
+  startDate: string;
+  lastDate: string;
+  vacancies: number;
+  salaryRange: string;
+  fees: {
+    general: number;
+    obc: number;
+    sc: number;
+    st: number;
+  };
+  isActive: boolean;
+}
 
 const JobDetail = () => {
   const { id } = useParams();
-  const job = mockJobs.find((j) => j.id === id);
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const [job, setJob] = useState<Job | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!job) {
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/jobs/${id}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError("Job not found");
+          } else {
+            setError("Failed to load job details");
+          }
+          return;
+        }
+        const data = await response.json();
+        setJob(data.job);
+      } catch (err) {
+        setError("Failed to load job details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchJob();
+    }
+  }, [id]);
+
+  const handleApply = () => {
+    if (!isAuthenticated) {
+      navigate("/login");
+    } else {
+      navigate("/dashboard/jobs");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-16 text-center">
+          <Loader2 className="mx-auto mb-4 h-16 w-16 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading job details...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !job) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -39,12 +114,13 @@ const JobDetail = () => {
     );
   }
 
+  const qualifications = job.eligibility ? job.eligibility.split(",").map(q => q.trim()) : [];
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="py-8 md:py-12">
         <div className="container mx-auto px-4">
-          {/* Back button */}
           <Link
             to="/govt-jobs"
             className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
@@ -54,7 +130,6 @@ const JobDetail = () => {
           </Link>
 
           <div className="grid gap-8 lg:grid-cols-3">
-            {/* Main content */}
             <div className="lg:col-span-2">
               <div className="rounded-2xl border border-border bg-card p-6 md:p-8">
                 <div className="mb-6">
@@ -95,46 +170,44 @@ const JobDetail = () => {
                   <div className="rounded-xl bg-muted/50 p-4 text-center">
                     <IndianRupee className="mx-auto mb-2 h-5 w-5 text-primary" />
                     <p className="text-sm text-muted-foreground">Salary</p>
-                    <p className="font-medium text-foreground">{job.salary}</p>
+                    <p className="font-medium text-foreground">{job.salaryRange}</p>
                   </div>
                 </div>
 
-                <div className="mb-8">
-                  <h2 className="mb-4 text-xl font-semibold text-foreground">Description</h2>
-                  <p className="text-muted-foreground">{job.description}</p>
-                </div>
-
-                <div className="mb-8">
-                  <h2 className="mb-4 text-xl font-semibold text-foreground">Eligibility & Qualifications</h2>
-                  <ul className="space-y-3">
-                    {job.qualifications.map((qual, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                        <span className="text-muted-foreground">{qual}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h2 className="mb-4 text-xl font-semibold text-foreground">Age Limit</h2>
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-primary" />
-                    <span className="text-muted-foreground">{job.ageLimit}</span>
+                {job.description && (
+                  <div className="mb-8">
+                    <h2 className="mb-4 text-xl font-semibold text-foreground">Description</h2>
+                    <p className="text-muted-foreground">{job.description}</p>
                   </div>
-                </div>
+                )}
+
+                {qualifications.length > 0 && (
+                  <div className="mb-8">
+                    <h2 className="mb-4 text-xl font-semibold text-foreground">Eligibility & Qualifications</h2>
+                    <ul className="space-y-3">
+                      {qualifications.map((qual, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                          <span className="text-muted-foreground">{qual}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Sidebar */}
             <div className="space-y-6">
-              {/* Apply card */}
               <div className="rounded-2xl border border-border bg-card p-6">
                 <h3 className="mb-4 text-lg font-semibold text-foreground">Application Fee</h3>
                 <div className="mb-6 space-y-3">
                   <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-                    <span className="text-muted-foreground">General / OBC</span>
+                    <span className="text-muted-foreground">General</span>
                     <span className="font-semibold text-foreground">₹{job.fees.general}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                    <span className="text-muted-foreground">OBC</span>
+                    <span className="font-semibold text-foreground">₹{job.fees.obc}</span>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
                     <span className="text-muted-foreground">SC / ST</span>
@@ -142,19 +215,20 @@ const JobDetail = () => {
                   </div>
                 </div>
 
-                <Button className="w-full" size="lg" asChild>
-                  <Link to="/register">Apply with Easy Gov Forms</Link>
+                <Button className="w-full" size="lg" onClick={handleApply}>
+                  {isAuthenticated ? "Apply Now" : "Login to Apply"}
                 </Button>
 
-                <p className="mt-4 text-center text-sm text-muted-foreground">
-                  Don't have an account?{" "}
-                  <Link to="/register" className="text-primary hover:underline">
-                    Register now
-                  </Link>
-                </p>
+                {!isAuthenticated && (
+                  <p className="mt-4 text-center text-sm text-muted-foreground">
+                    Don't have an account?{" "}
+                    <Link to="/register" className="text-primary hover:underline">
+                      Register now
+                    </Link>
+                  </p>
+                )}
               </div>
 
-              {/* Quick info */}
               <div className="rounded-2xl border border-border bg-card p-6">
                 <h3 className="mb-4 text-lg font-semibold text-foreground">Quick Info</h3>
                 <ul className="space-y-3 text-sm">
