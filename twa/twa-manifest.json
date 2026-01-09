@@ -1,0 +1,60 @@
+{
+  "packageId": "com.easygovforms.app",
+  "host": "your-domain.replit.app",
+  "name": "Easy Gov Forms",
+  "launcherName": "EasyGov",
+  "display": "standalone",
+  "themeColor": "#16a34a",
+  "navigationColor": "#0f172a",
+  "navigationColorDark": "#0f172a",
+  "navigationDividerColor": "#0f172a",
+  "navigationDividerColorDark": "#0f172a",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://your-domain.replit.app/icons/icon-512x512.png",
+  "maskableIconUrl": "https://your-domain.replit.app/icons/icon-512x512.png",
+  "shortcuts": [
+    {
+      "name": "Government Jobs",
+      "shortName": "Jobs",
+      "url": "/govt-jobs",
+      "icons": [
+        {
+          "src": "https://your-domain.replit.app/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My Applications",
+      "shortName": "Applications",
+      "url": "/dashboard/applications"
+    }
+  ],
+  "generatorApp": "Bubblewrap CLI",
+  "webManifestUrl": "https://your-domain.replit.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "easygovforms"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "splashScreenFadeOutDuration": 300,
+  "minSdkVersion": 21
+}
