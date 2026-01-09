@@ -1,19 +1,58 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import JobCard from "@/components/jobs/JobCard";
 import JobFilters from "@/components/jobs/JobFilters";
-import { mockJobs } from "@/data/mockData";
-import { Briefcase } from "lucide-react";
+import { Briefcase, Loader2 } from "lucide-react";
+
+interface Job {
+  _id: string;
+  title: string;
+  department: string;
+  category: string;
+  location: string;
+  eligibility: string;
+  description?: string;
+  startDate: string;
+  lastDate: string;
+  vacancies: number;
+  salaryRange: string;
+  fees: {
+    general: number;
+    obc: number;
+    sc: number;
+    st: number;
+  };
+  isActive: boolean;
+}
 
 const GovtJobs = () => {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("All Categories");
   const [state, setState] = useState("All States");
   const [education, setEducation] = useState("All Levels");
 
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const response = await fetch("/api/jobs");
+        if (response.ok) {
+          const data = await response.json();
+          setJobs(data.jobs || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch jobs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchJobs();
+  }, []);
+
   const filteredJobs = useMemo(() => {
-    return mockJobs.filter((job) => {
+    return jobs.filter((job) => {
       const matchesSearch =
         job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         job.department.toLowerCase().includes(searchQuery.toLowerCase());
@@ -30,14 +69,13 @@ const GovtJobs = () => {
 
       return matchesSearch && matchesCategory && matchesState && matchesEducation;
     });
-  }, [searchQuery, category, state, education]);
+  }, [jobs, searchQuery, category, state, education]);
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="py-8 md:py-12">
         <div className="container mx-auto px-4">
-          {/* Page Header */}
           <div className="mb-8">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
@@ -54,7 +92,6 @@ const GovtJobs = () => {
             </div>
           </div>
 
-          {/* Filters */}
           <div className="mb-8">
             <JobFilters
               searchQuery={searchQuery}
@@ -68,18 +105,20 @@ const GovtJobs = () => {
             />
           </div>
 
-          {/* Results count */}
           <div className="mb-6">
             <p className="text-muted-foreground">
               Showing <span className="font-medium text-foreground">{filteredJobs.length}</span> jobs
             </p>
           </div>
 
-          {/* Job Cards */}
-          {filteredJobs.length > 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredJobs.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredJobs.map((job) => (
-                <JobCard key={job.id} job={job} />
+                <JobCard key={job._id} job={job} />
               ))}
             </div>
           ) : (

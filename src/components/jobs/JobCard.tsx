@@ -1,13 +1,41 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Users, IndianRupee, ArrowRight, Briefcase } from "lucide-react";
-import { Job } from "@/data/mockData";
+import { Calendar, MapPin, Users, ArrowRight, Briefcase } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface Job {
+  _id: string;
+  title: string;
+  department: string;
+  category: string;
+  location: string;
+  eligibility: string;
+  lastDate: string;
+  vacancies: number;
+  fees: {
+    general: number;
+    obc: number;
+    sc: number;
+    st: number;
+  };
+}
 
 interface JobCardProps {
   job: Job;
 }
 
 const JobCard = ({ job }: JobCardProps) => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  const handleApply = () => {
+    if (!isAuthenticated) {
+      navigate("/login");
+    } else {
+      navigate("/dashboard/jobs");
+    }
+  };
+
   return (
     <div className="hover-lift group rounded-2xl border border-border bg-card p-6 transition-all">
       <div className="mb-4 flex items-start justify-between">
@@ -43,7 +71,6 @@ const JobCard = ({ job }: JobCardProps) => {
         </div>
       </div>
 
-      {/* Fee breakdown */}
       <div className="mb-4 rounded-lg bg-muted/50 p-3">
         <div className="grid grid-cols-4 gap-2 text-center text-xs">
           <div>
@@ -67,13 +94,11 @@ const JobCard = ({ job }: JobCardProps) => {
 
       <div className="flex gap-3">
         <Button variant="outline" className="flex-1" asChild>
-          <Link to={`/govt-jobs/${job.id}`}>View Details</Link>
+          <Link to={`/job/${job._id}`}>View Details</Link>
         </Button>
-        <Button className="flex-1 gap-1" asChild>
-          <Link to={`/govt-jobs/${job.id}`}>
-            Apply
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+        <Button className="flex-1 gap-1" onClick={handleApply}>
+          Apply
+          <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
     </div>
