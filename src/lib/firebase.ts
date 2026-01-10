@@ -19,12 +19,30 @@ export const auth = getAuth(app);
 
 // Helper function to setup reCAPTCHA verifier
 export const setupRecaptchaVerifier = (containerId: string) => {
-  return new RecaptchaVerifier(containerId, {
-    size: 'invisible',
-    callback: (response: any) => {
-      console.log('reCAPTCHA verified:', response);
-    },
-  }, auth);
+  try {
+    // Check if container exists
+    const container = document.getElementById(containerId);
+    if (!container) {
+      // Create container if it doesn't exist
+      const div = document.createElement('div');
+      div.id = containerId;
+      div.style.display = 'none';
+      document.body.appendChild(div);
+    }
+
+    return new RecaptchaVerifier(containerId, {
+      size: 'invisible',
+      callback: (response: any) => {
+        console.log('reCAPTCHA verified:', response);
+      },
+      'expired-callback': () => {
+        console.log('reCAPTCHA expired');
+      },
+    }, auth);
+  } catch (error: any) {
+    console.error('Failed to setup reCAPTCHA verifier:', error);
+    throw error;
+  }
 };
 
 // Helper function to sign in with phone number
