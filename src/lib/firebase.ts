@@ -12,20 +12,10 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let app;
-let authInstance;
-
-try {
-  app = initializeApp(firebaseConfig);
-  authInstance = getAuth(app);
-  // Enable app verification for testing (if needed)
-  authInstance.settings.appVerificationDisabledForTesting = false;
-} catch (error) {
-  console.error('Firebase initialization error:', error);
-}
+const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Authentication
-export const auth = authInstance as any;
+export const auth = getAuth(app);
 
 // Helper function to setup reCAPTCHA verifier
 export const setupRecaptchaVerifier = (containerId: string) => {
