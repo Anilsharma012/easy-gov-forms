@@ -8,7 +8,7 @@ import { useCSCPhoneAuth } from '@/hooks/useCSCPhoneAuth';
 
 interface CSCPhoneAuthFormProps {
   mode?: 'login' | 'signup';
-  onSuccess?: (idToken: string, firebaseUser: any) => void;
+  onSuccess?: (idToken: string, firebaseUser: any, phoneNumber: string) => void;
   onError?: (error: string) => void;
   onToggleMode?: () => void;
 }
