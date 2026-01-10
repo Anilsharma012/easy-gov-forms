@@ -69,8 +69,8 @@ export const PWAInstallButton = () => {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
-        <button
+       <div className="fixed bottom-[calc(70px+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-50 flex items-center gap-2">
+       <button
           onClick={handleInstall}
           className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 animate-pulse"
         >

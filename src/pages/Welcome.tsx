@@ -263,11 +263,7 @@ const Welcome = () => {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <Link to="/admin/login">
-                        <Button variant="outline" className="w-full text-sm">
-                          Admin
-                        </Button>
-                      </Link>
+                     
                       <Link to="/csc/login">
                         <Button variant="outline" className="w-full text-sm text-blue-600 border-blue-200 hover:bg-blue-50">
                           CSC Partner
