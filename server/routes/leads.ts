@@ -4,6 +4,7 @@ import { CSCCenter } from '../models/CSCCenter';
 import { Application } from '../models/Application';
 import { User } from '../models/User';
 import { verifyToken, isAdmin, AuthRequest } from '../middleware/auth';
+import { sendEmail } from '../utils/emailService';
 
 const router = Router();
 
@@ -244,6 +245,14 @@ router.patch('/:id/assign', verifyToken, isAdmin, async (req: AuthRequest, res: 
     
     center.totalLeads += 1;
     await center.save();
+
+    // Send email notification for lead transfer
+    await sendEmail(
+      center.email,
+      'New Lead Assigned',
+      `Hello ${center.ownerName},\n\nA new lead "${lead.name}" for "${lead.formName}" has been assigned to your center.`,
+      `<h1>New Lead Assigned</h1><p>Hello ${center.ownerName},</p><p>A new lead <strong>"${lead.name}"</strong> for <strong>"${lead.formName}"</strong> has been assigned to your center.</p><p>Please check your dashboard for details.</p>`
+    );
     
     res.json({ message: 'Lead assigned successfully', lead });
   } catch (error: any) {

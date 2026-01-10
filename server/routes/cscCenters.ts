@@ -7,6 +7,7 @@ import { verifyToken, isAdmin, AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
+import { sendEmail } from '../utils/emailService';
 
 const router = Router();
 
@@ -619,6 +620,16 @@ router.post('/:id/assign-package', verifyToken, isAdmin, async (req: AuthRequest
     center.totalLeads += pkg.leads;
     center.assignedPackages.push(assignment._id);
     await center.save();
+
+    // Send email notification for package assignment
+    if (center && center.email) {
+      await sendEmail(
+        center.email,
+        'CSC Lead Package Activated',
+        `Hello ${center.ownerName},\n\nThe lead package "${pkg.name}" has been activated for your center. You now have ${pkg.leads} additional lead credits valid until ${expiresAt.toLocaleDateString()}.`,
+        `<h1>CSC Lead Package Activated</h1><p>Hello ${center.ownerName},</p><p>The lead package <strong>"${pkg.name}"</strong> has been activated for your center.</p><p>You now have <strong>${pkg.leads} additional lead credits</strong> valid until <strong>${expiresAt.toLocaleDateString()}</strong>.</p>`
+      );
+    }
     
     res.json({ message: 'Package assigned successfully', assignment });
   } catch (error: any) {

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { User } from '../models/User';
 import { generateToken, verifyToken, AuthRequest } from '../middleware/auth';
+import { sendEmail } from '../utils/emailService';
 
 const router = Router();
 
@@ -22,6 +23,14 @@ router.post('/register', async (req: Request, res: Response) => {
     });
 
     await user.save();
+
+    // Send Welcome Email
+    await sendEmail(
+      email,
+      'Welcome to Digital Seva Portal',
+      `Hello ${name},\n\nThank you for registering with Digital Seva Portal. Your account has been created successfully.`,
+      `<h1>Welcome to Digital Seva Portal</h1><p>Hello ${name},</p><p>Thank you for registering with Digital Seva Portal. Your account has been created successfully.</p>`
+    );
 
     const token = generateToken(user._id.toString(), user.role);
 

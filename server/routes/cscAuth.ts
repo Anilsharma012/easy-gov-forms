@@ -5,6 +5,7 @@ import { User } from '../models/User';
 import { verifyToken, isCSC, AuthRequest, generateToken } from '../middleware/auth';
 import fs from 'fs';
 import path from 'path';
+import { sendEmail } from '../utils/emailService';
 
 const router = Router();
 
@@ -121,6 +122,14 @@ router.post('/register', async (req, res: Response) => {
       documents,
     });
     await cscCenter.save();
+
+    // Send Registration Notification
+    await sendEmail(
+      email,
+      'CSC Center Registration Received',
+      `Hello ${ownerName},\n\nYour CSC Center registration for "${centerName}" has been received and is currently under review by our admin team. You will be notified once your account is verified.`,
+      `<h1>CSC Center Registration Received</h1><p>Hello ${ownerName},</p><p>Your CSC Center registration for <strong>"${centerName}"</strong> has been received and is currently under review by our admin team.</p><p>You will be notified once your account is verified.</p>`
+    );
 
     res.status(201).json({ 
       message: 'CSC Center registered successfully. Please wait for admin verification.',

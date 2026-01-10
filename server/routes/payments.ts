@@ -6,6 +6,7 @@ import { User } from '../models/User';
 import { Referral } from '../models/Referral';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
+import { sendEmail } from '../utils/emailService';
 
 const router = Router();
 
@@ -185,11 +186,22 @@ router.post('/verify-payment', verifyToken, async (req: AuthRequest, res: Respon
 
     await userPackage.save();
 
+    const user = await User.findById(userId);
+
+    // Send Purchase Confirmation Email
+    if (user && user.email) {
+      await sendEmail(
+        user.email,
+        'Package Purchase Confirmation',
+        `Hello ${user.name},\n\nYou have successfully purchased the ${pkg.name} package for ₹${pkg.price}. Your package includes ${pkg.forms} forms and is valid until ${expiresAt.toLocaleDateString()}.`,
+        `<h1>Package Purchase Successful</h1><p>Hello ${user.name},</p><p>You have successfully purchased the <strong>${pkg.name}</strong> package for <strong>₹${pkg.price}</strong>.</p><p>Your package includes ${pkg.forms} forms and is valid until <strong>${expiresAt.toLocaleDateString()}</strong>.</p>`
+      );
+    }
+
     await User.findByIdAndUpdate(userId, {
       activePackage: pkg.name,
     });
 
-    const user = await User.findById(userId);
     if (user?.referredBy) {
       const referrer = await User.findOne({ referralCode: user.referredBy });
       if (referrer) {
