@@ -30,6 +30,11 @@ export const auth = authInstance as any;
 // Helper function to setup reCAPTCHA verifier
 export const setupRecaptchaVerifier = (containerId: string) => {
   try {
+    // Validate auth is properly initialized
+    if (!auth || !auth.app) {
+      throw new Error('Firebase authentication is not properly initialized. Please reload the page.');
+    }
+
     // Check if container exists
     const container = document.getElementById(containerId);
     if (!container) {
@@ -40,7 +45,12 @@ export const setupRecaptchaVerifier = (containerId: string) => {
       document.body.appendChild(div);
     }
 
-    return new RecaptchaVerifier(containerId, {
+    // Ensure app verification is properly configured
+    if (auth && typeof auth === 'object') {
+      auth.settings = auth.settings || {};
+    }
+
+    const verifier = new RecaptchaVerifier(containerId, {
       size: 'invisible',
       callback: (response: any) => {
         console.log('reCAPTCHA verified:', response);
@@ -49,6 +59,8 @@ export const setupRecaptchaVerifier = (containerId: string) => {
         console.log('reCAPTCHA expired');
       },
     }, auth);
+
+    return verifier;
   } catch (error: any) {
     console.error('Failed to setup reCAPTCHA verifier:', error);
     throw error;
