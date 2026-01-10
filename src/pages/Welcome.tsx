@@ -4,31 +4,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  FileText, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  ArrowRight, 
-  CheckCircle2, 
-  Users, 
-  Briefcase, 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  FileText,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  CheckCircle2,
+  Users,
+  Briefcase,
   Shield,
   Clock,
   Star,
-  Award
+  Award,
+  Phone
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import SplashScreen from "@/components/layout/SplashScreen";
 import MobileHome from "./MobileHome";
+import PhoneAuthForm from "@/components/PhoneAuthForm";
 
 const Welcome = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [activeTab, setActiveTab] = useState("email");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
