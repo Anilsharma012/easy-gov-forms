@@ -1,40 +1,19 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Building2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import CSCPhoneAuthForm from "@/components/CSCPhoneAuthForm";
 
 const CSCLogin = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { cscPhoneAuth } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
+  const handlePhoneAuthSuccess = async (idToken: string, firebaseUser: any) => {
     try {
-      const response = await fetch("/api/csc/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-
+      await cscPhoneAuth(idToken, firebaseUser.phoneNumber, "login");
       toast({
         title: "Login Successful",
         description: "Welcome to CSC Dashboard!",
@@ -46,8 +25,6 @@ const CSCLogin = () => {
         description: error.message || "Invalid credentials",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
