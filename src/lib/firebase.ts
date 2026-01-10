@@ -1,8 +1,8 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, signOut } from 'firebase/auth';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, signOut, AuthErrorCodes } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "GOOGLE_API_KEY",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBgNc51P86jC_zI7zx4Fz6ZViBnhdXVan4",
   authDomain: "easygovform.firebaseapp.com",
   projectId: "easygovform",
   storageBucket: "easygovform.firebasestorage.app",
@@ -11,57 +11,108 @@ const firebaseConfig = {
   measurementId: "G-3NH03VKN71"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase - prevent double initialization
+let app;
+try {
+  const apps = getApps();
+  if (apps.length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = apps[0];
+  }
+} catch (error) {
+  console.error('Error initializing Firebase app:', error);
+  app = initializeApp(firebaseConfig);
+}
 
-// Initialize Firebase Authentication
+// Get Auth instance
 export const auth = getAuth(app);
+
+// Ensure auth is properly initialized with required properties
+if (typeof window !== 'undefined' && auth) {
+  // Set language
+  auth.languageCode = 'en';
+  
+  // Safely ensure settings object exists and has required properties
+  if (!auth.settings) {
+    Object.defineProperty(auth, 'settings', {
+      value: {},
+      writable: true,
+      enumerable: true,
+      configurable: true
+    });
+  }
+  
+  // Ensure appVerificationDisabledForTesting is set
+  if (!('appVerificationDisabledForTesting' in auth.settings)) {
+    auth.settings.appVerificationDisabledForTesting = false;
+  }
+}
 
 // Helper function to setup reCAPTCHA verifier
 export const setupRecaptchaVerifier = (containerId: string) => {
   try {
-    // Check if container exists
-    const container = document.getElementById(containerId);
+    // Validate auth exists
+    if (!auth) {
+      throw new Error('Firebase auth is not initialized. Please reload the page.');
+    }
+
+    // Ensure container exists
+    let container = document.getElementById(containerId);
     if (!container) {
-      // Create container if it doesn't exist
       const div = document.createElement('div');
       div.id = containerId;
       div.style.display = 'none';
       document.body.appendChild(div);
+      container = div;
     }
 
-    return new RecaptchaVerifier(containerId, {
-      size: 'invisible',
-      callback: (response: any) => {
-        console.log('reCAPTCHA verified:', response);
+    // Create and return verifier
+    const verifier = new RecaptchaVerifier(
+      containerId,
+      {
+        size: 'invisible',
+        callback: () => {
+          console.log('reCAPTCHA verification complete');
+        },
+        'expired-callback': () => {
+          console.log('reCAPTCHA token expired');
+        },
+        'error-callback': () => {
+          console.log('reCAPTCHA error');
+        }
       },
-      'expired-callback': () => {
-        console.log('reCAPTCHA expired');
-      },
-    }, auth);
-  } catch (error: any) {
-    console.error('Failed to setup reCAPTCHA verifier:', error);
+      auth
+    );
+
+    return verifier;
+  } catch (error) {
+    console.error('reCAPTCHA verifier setup failed:', error);
     throw error;
   }
 };
 
-// Helper function to sign in with phone number
-export const sendOTP = async (phoneNumber: string, appVerifier: RecaptchaVerifier) => {
+// Helper function to send OTP
+export const sendOTP = async (phoneNumber, appVerifier) => {
   try {
+    if (!auth) {
+      throw new Error('Firebase auth is not initialized');
+    }
+    
     const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
     return confirmationResult;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error sending OTP:', error);
     throw error;
   }
 };
 
 // Helper function to verify OTP
-export const verifyOTP = async (confirmationResult: any, otp: string) => {
+export const verifyOTP = async (confirmationResult, otp) => {
   try {
     const result = await confirmationResult.confirm(otp);
     return result.user;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error verifying OTP:', error);
     throw error;
   }
@@ -69,8 +120,12 @@ export const verifyOTP = async (confirmationResult: any, otp: string) => {
 
 // Helper function to get ID token
 export const getIdToken = async () => {
-  if (auth.currentUser) {
-    return await auth.currentUser.getIdToken();
+  try {
+    if (auth && auth.currentUser) {
+      return await auth.currentUser.getIdToken();
+    }
+  } catch (error) {
+    console.error('Error getting ID token:', error);
   }
   return null;
 };
@@ -78,8 +133,10 @@ export const getIdToken = async () => {
 // Helper function to sign out
 export const firebaseSignOut = async () => {
   try {
-    await signOut(auth);
-  } catch (error: any) {
+    if (auth) {
+      await signOut(auth);
+    }
+  } catch (error) {
     console.error('Error signing out:', error);
     throw error;
   }

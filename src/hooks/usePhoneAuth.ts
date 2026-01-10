@@ -38,10 +38,12 @@ export const usePhoneAuth = () => {
       recaptchaVerifierRef.current = setupRecaptchaVerifier(containerId);
       return recaptchaVerifierRef.current;
     } catch (error: any) {
+      const errorMessage = error.message || 'Failed to initialize reCAPTCHA. Please check your Firebase configuration and refresh the page.';
       setState((prev) => ({
         ...prev,
-        error: error.message || 'Failed to initialize reCAPTCHA. Please refresh the page.',
+        error: errorMessage,
       }));
+      console.error('reCAPTCHA initialization error:', error);
       throw error;
     }
   };
