@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, signOut } from 'firebase/auth';
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, signOut, initializeRecaptchaConfig } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBgNc51P86jC_zI7zx4Fz6ZViBnhdXVan4",
@@ -17,33 +17,49 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
 
+// Configure reCAPTCHA
+if (typeof window !== 'undefined') {
+  // This ensures Firebase auth is ready
+  auth.languageCode = 'en';
+}
+
 // Helper function to setup reCAPTCHA verifier
 export const setupRecaptchaVerifier = (containerId: string) => {
   try {
     // Check if container exists
-    const container = document.getElementById(containerId);
+    let container = document.getElementById(containerId);
     if (!container) {
       // Create container if it doesn't exist
       const div = document.createElement('div');
       div.id = containerId;
       div.style.display = 'none';
       document.body.appendChild(div);
+      container = div;
     }
 
-    const verifier = new RecaptchaVerifier(containerId, {
-      size: 'invisible',
-      callback: (response: any) => {
-        console.log('reCAPTCHA verified:', response);
+    // Create verifier with explicit auth instance
+    const verifier = new RecaptchaVerifier(
+      container,
+      {
+        size: 'invisible',
+        callback: (response: any) => {
+          console.log('reCAPTCHA verified:', response);
+        },
+        'expired-callback': () => {
+          console.log('reCAPTCHA expired');
+        },
       },
-      'expired-callback': () => {
-        console.log('reCAPTCHA expired');
-      },
-    }, auth);
+      auth
+    );
 
     return verifier;
   } catch (error: any) {
     console.error('Failed to setup reCAPTCHA verifier:', error);
-    throw error;
+    console.error('Auth object:', auth);
+    console.error('Auth app:', auth?.app);
+    throw new Error(
+      `reCAPTCHA setup failed: ${error.message}. Make sure Firebase is properly initialized with a valid API key.`
+    );
   }
 };
 
