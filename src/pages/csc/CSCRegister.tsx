@@ -18,6 +18,7 @@ interface FileUpload {
 }
 
 const CSCRegister = () => {
+  const [authMode, setAuthMode] = useState<'phone' | 'traditional'>('phone');
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -34,17 +35,35 @@ const CSCRegister = () => {
     cscId: "",
     registrationNumber: "",
   });
-  
+
   const [addressProof, setAddressProof] = useState<FileUpload | null>(null);
   const [identityProof, setIdentityProof] = useState<FileUpload | null>(null);
   const [photo, setPhoto] = useState<FileUpload | null>(null);
-  
+
   const addressProofRef = useRef<HTMLInputElement>(null);
   const identityProofRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { cscPhoneAuth } = useAuth();
+
+  const handlePhoneAuthSuccess = async (idToken: string, firebaseUser: any) => {
+    try {
+      await cscPhoneAuth(idToken, firebaseUser.phoneNumber, "signup");
+      toast({
+        title: "Account Created",
+        description: "Your CSC account has been created successfully!",
+      });
+      navigate("/csc/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Registration Failed",
+        description: error.message || "Failed to create account",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleFileChange = (
     event: React.ChangeEvent<HTMLInputElement>,
