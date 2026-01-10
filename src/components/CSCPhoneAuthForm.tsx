@@ -70,7 +70,7 @@ const CSCPhoneAuthForm = ({
 
     if (result?.idToken) {
       if (onSuccess) {
-        onSuccess(result.idToken, result.user);
+        onSuccess(result.idToken, result.user, phoneNumber);
       }
     } else if (onError) {
       onError(error || 'Failed to verify OTP');
