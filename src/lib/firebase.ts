@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, signOut } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "GOOGLE_API_KEY",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDKTpH_XqNwPH9w_X9Z9X9Z9X9Z9X9Z9X8",
   authDomain: "easygovform.firebaseapp.com",
   projectId: "easygovform",
   storageBucket: "easygovform.firebasestorage.app",
@@ -12,10 +12,20 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+let authInstance;
+
+try {
+  app = initializeApp(firebaseConfig);
+  authInstance = getAuth(app);
+  // Enable app verification for testing (if needed)
+  authInstance.settings.appVerificationDisabledForTesting = false;
+} catch (error) {
+  console.error('Firebase initialization error:', error);
+}
 
 // Initialize Firebase Authentication
-export const auth = getAuth(app);
+export const auth = authInstance as any;
 
 // Helper function to setup reCAPTCHA verifier
 export const setupRecaptchaVerifier = (containerId: string) => {
