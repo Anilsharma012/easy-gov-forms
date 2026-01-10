@@ -52,9 +52,31 @@ const Welcome = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const { login } = useAuth();
+  const { login, phoneLogin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handlePhoneAuthSuccess = async (idToken: string) => {
+    setIsLoading(true);
+    try {
+      // Extract phone number from the form (you may need to store it from the PhoneAuthForm)
+      // For now, we'll pass a placeholder - in production, you'd get this from the component
+      await phoneLogin(idToken, "");
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      });
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message || "Failed to complete phone login",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
