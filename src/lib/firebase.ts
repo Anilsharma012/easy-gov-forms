@@ -37,9 +37,9 @@ export const setupRecaptchaVerifier = (containerId: string) => {
       container = div;
     }
 
-    // Create verifier with explicit auth instance
+    // Create verifier with container ID (not the element)
     const verifier = new RecaptchaVerifier(
-      container,
+      containerId,
       {
         size: 'invisible',
         callback: (response: any) => {
