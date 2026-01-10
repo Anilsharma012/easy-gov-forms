@@ -56,12 +56,10 @@ const Welcome = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handlePhoneAuthSuccess = async (idToken: string) => {
+  const handlePhoneAuthSuccess = async (idToken: string, phoneNumber: string) => {
     setIsLoading(true);
     try {
-      // Extract phone number from the form (you may need to store it from the PhoneAuthForm)
-      // For now, we'll pass a placeholder - in production, you'd get this from the component
-      await phoneLogin(idToken, "");
+      await phoneLogin(idToken, phoneNumber);
       toast({
         title: "Login Successful",
         description: "Welcome back!",
