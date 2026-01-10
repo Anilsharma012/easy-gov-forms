@@ -48,9 +48,13 @@ const CSCRegister = () => {
   const { toast } = useToast();
   const { cscPhoneAuth } = useAuth();
 
-  const handlePhoneAuthSuccess = async (idToken: string, firebaseUser: any) => {
+  const handlePhoneAuthSuccess = async (
+    idToken: string,
+    firebaseUser: any,
+    phoneNumber: string
+  ) => {
     try {
-      await cscPhoneAuth(idToken, firebaseUser.phoneNumber, "signup");
+      await cscPhoneAuth(idToken, phoneNumber, "signup");
       toast({
         title: "Account Created",
         description: "Your CSC account has been created successfully!",
