@@ -5,8 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, User, Mail, Phone, Lock, Eye, EyeOff, MapPin, FileText, Upload, Image, IdCard, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import CSCPhoneAuthForm from "@/components/CSCPhoneAuthForm";
 
 interface FileUpload {
   fileName: string;
@@ -14,6 +18,7 @@ interface FileUpload {
 }
 
 const CSCRegister = () => {
+  const [authMode, setAuthMode] = useState<'phone' | 'traditional'>('phone');
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,17 +35,39 @@ const CSCRegister = () => {
     cscId: "",
     registrationNumber: "",
   });
-  
+
   const [addressProof, setAddressProof] = useState<FileUpload | null>(null);
   const [identityProof, setIdentityProof] = useState<FileUpload | null>(null);
   const [photo, setPhoto] = useState<FileUpload | null>(null);
-  
+
   const addressProofRef = useRef<HTMLInputElement>(null);
   const identityProofRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { cscPhoneAuth } = useAuth();
+
+  const handlePhoneAuthSuccess = async (
+    idToken: string,
+    firebaseUser: any,
+    phoneNumber: string
+  ) => {
+    try {
+      await cscPhoneAuth(idToken, phoneNumber, "signup");
+      toast({
+        title: "Account Created",
+        description: "Your CSC account has been created successfully!",
+      });
+      navigate("/csc/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Registration Failed",
+        description: error.message || "Failed to create account",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleFileChange = (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -205,7 +232,35 @@ const CSCRegister = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <Tabs value={authMode} onValueChange={(value) => setAuthMode(value as 'phone' | 'traditional')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="phone">Quick Registration</TabsTrigger>
+              <TabsTrigger value="traditional">Full Registration</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="phone">
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Sign up with your mobile number and verify via OTP. Complete your profile details later.
+                  </p>
+                  <CSCPhoneAuthForm
+                    mode="signup"
+                    onSuccess={handlePhoneAuthSuccess}
+                    onError={(error) =>
+                      toast({
+                        title: "Error",
+                        description: error,
+                        variant: "destructive",
+                      })
+                    }
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="traditional">
+              <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="centerName">Center Name</Label>
@@ -501,10 +556,12 @@ const CSCRegister = () => {
               </label>
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" size="lg" disabled={!acceptTerms || isLoading}>
-              {isLoading ? "Submitting..." : "Submit Registration"}
-            </Button>
-          </form>
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" size="lg" disabled={!acceptTerms || isLoading}>
+                  {isLoading ? "Submitting..." : "Submit Registration"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already a partner?{" "}

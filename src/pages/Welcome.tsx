@@ -4,31 +4,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  FileText, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  ArrowRight, 
-  CheckCircle2, 
-  Users, 
-  Briefcase, 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  FileText,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  CheckCircle2,
+  Users,
+  Briefcase,
   Shield,
   Clock,
   Star,
-  Award
+  Award,
+  Phone
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import SplashScreen from "@/components/layout/SplashScreen";
 import MobileHome from "./MobileHome";
+import PhoneAuthForm from "@/components/PhoneAuthForm";
 
 const Welcome = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [activeTab, setActiveTab] = useState("email");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -48,9 +52,29 @@ const Welcome = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const { login } = useAuth();
+  const { login, phoneLogin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handlePhoneAuthSuccess = async (idToken: string, phoneNumber: string) => {
+    setIsLoading(true);
+    try {
+      await phoneLogin(idToken, phoneNumber);
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      });
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message || "Failed to complete phone login",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,61 +221,89 @@ const Welcome = () => {
                     <p className="mt-2 text-gray-500">Sign in to continue your journey</p>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="Enter your email"
-                          className="pl-10"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
+                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                      <TabsTrigger value="email" className="gap-2">
+                        <Mail className="h-4 w-4" />
+                        <span className="hidden sm:inline">Email</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="phone" className="gap-2">
+                        <Phone className="h-4 w-4" />
+                        <span className="hidden sm:inline">OTP</span>
+                      </TabsTrigger>
+                    </TabsList>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="password">Password</Label>
-                        <Link to="/forgot-password" className="text-sm text-green-600 hover:text-green-700">
-                          Forgot password?
-                        </Link>
-                      </div>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                        <Input
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          className="pl-10 pr-10"
-                          value={formData.password}
-                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          required
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          onClick={() => setShowPassword(!showPassword)}
+                    <TabsContent value="email">
+                      <form onSubmit={handleSubmit} className="space-y-5">
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Email Address</Label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                            <Input
+                              id="email"
+                              type="email"
+                              placeholder="Enter your email"
+                              className="pl-10"
+                              value={formData.email}
+                              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="password">Password</Label>
+                            <Link to="/forgot-password" className="text-sm text-green-600 hover:text-green-700">
+                              Forgot password?
+                            </Link>
+                          </div>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                            <Input
+                              id="password"
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Enter your password"
+                              className="pl-10 pr-10"
+                              value={formData.password}
+                              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                              required
+                            />
+                            <button
+                              type="button"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="submit"
+                          className="w-full bg-green-600 hover:bg-green-700 text-white py-6"
+                          size="lg"
+                          disabled={isLoading}
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
+                          {isLoading ? "Signing In..." : "Sign In"}
+                          {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+                        </Button>
+                      </form>
+                    </TabsContent>
 
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-green-600 hover:bg-green-700 text-white py-6" 
-                      size="lg" 
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Signing In..." : "Sign In"}
-                      {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
-                    </Button>
-                  </form>
+                    <TabsContent value="phone">
+                      <PhoneAuthForm
+                        onSuccess={handlePhoneAuthSuccess}
+                        onError={(error) =>
+                          toast({
+                            title: "Error",
+                            description: error,
+                            variant: "destructive",
+                          })
+                        }
+                      />
+                    </TabsContent>
+                  </Tabs>
 
                   <div className="mt-6 space-y-3">
                     <div className="relative">

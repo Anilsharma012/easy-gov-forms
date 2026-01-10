@@ -6,7 +6,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   phone: string;
-  password: string;
+  password?: string;
   role: 'user' | 'admin' | 'csc';
   isActive: boolean;
   city?: string;
@@ -28,6 +28,8 @@ export interface IUser extends Document {
   referredBy?: string;
   referralCount: number;
   rewardPoints: number;
+  firebaseUid?: string;
+  authMethod?: 'email-password' | 'firebase-phone';
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -59,7 +61,6 @@ const userSchema = new Schema<IUser>({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
     minlength: 6,
   },
   role: {
@@ -146,6 +147,15 @@ const userSchema = new Schema<IUser>({
   rewardPoints: {
     type: Number,
     default: 0,
+  },
+  firebaseUid: {
+    type: String,
+    sparse: true,
+  },
+  authMethod: {
+    type: String,
+    enum: ['email-password', 'firebase-phone'],
+    default: 'email-password',
   },
 }, {
   timestamps: true,

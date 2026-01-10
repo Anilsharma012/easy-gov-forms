@@ -1,40 +1,23 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Building2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import CSCPhoneAuthForm from "@/components/CSCPhoneAuthForm";
 
 const CSCLogin = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { cscPhoneAuth } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
+  const handlePhoneAuthSuccess = async (
+    idToken: string,
+    firebaseUser: any,
+    phoneNumber: string
+  ) => {
     try {
-      const response = await fetch("/api/csc/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-
+      await cscPhoneAuth(idToken, phoneNumber, "login");
       toast({
         title: "Login Successful",
         description: "Welcome to CSC Dashboard!",
@@ -46,8 +29,6 @@ const CSCLogin = () => {
         description: error.message || "Invalid credentials",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -71,52 +52,17 @@ const CSCLogin = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  className="pl-10"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  className="pl-10 pr-10"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" size="lg" disabled={isLoading}>
-              {isLoading ? "Signing In..." : "Sign In"}
-            </Button>
-          </form>
+          <CSCPhoneAuthForm
+            mode="login"
+            onSuccess={handlePhoneAuthSuccess}
+            onError={(error) =>
+              toast({
+                title: "Error",
+                description: error,
+                variant: "destructive",
+              })
+            }
+          />
 
           <div className="mt-6">
             <Link to="/login">
