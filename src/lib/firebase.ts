@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, signOut } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDKTpH_XqNwPH9w_X9Z9X9Z9X9Z9X9Z9X8",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBgNc51P86jC_zI7zx4Fz6ZViBnhdXVan4",
   authDomain: "easygovform.firebaseapp.com",
   projectId: "easygovform",
   storageBucket: "easygovform.firebasestorage.app",
