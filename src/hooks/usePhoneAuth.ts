@@ -25,14 +25,22 @@ export const usePhoneAuth = () => {
 
   const initializeRecaptcha = (containerId: string) => {
     try {
-      if (!recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current = setupRecaptchaVerifier(containerId);
+      // Clear previous verifier if it exists
+      if (recaptchaVerifierRef.current) {
+        try {
+          recaptchaVerifierRef.current.clear();
+        } catch (e) {
+          console.warn('Error clearing previous verifier:', e);
+        }
+        recaptchaVerifierRef.current = null;
       }
+
+      recaptchaVerifierRef.current = setupRecaptchaVerifier(containerId);
       return recaptchaVerifierRef.current;
     } catch (error: any) {
       setState((prev) => ({
         ...prev,
-        error: 'Failed to initialize reCAPTCHA. Please refresh the page.',
+        error: error.message || 'Failed to initialize reCAPTCHA. Please refresh the page.',
       }));
       throw error;
     }
