@@ -12,20 +12,32 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+let authInstance;
+
+try {
+  app = initializeApp(firebaseConfig);
+  authInstance = getAuth(app);
+  
+  // Force auth to be ready and properly configured
+  authInstance.settings = authInstance.settings || {};
+  if (!authInstance.settings.hasOwnProperty('appVerificationDisabledForTesting')) {
+    authInstance.settings.appVerificationDisabledForTesting = false;
+  }
+} catch (error) {
+  console.error('Firebase initialization error:', error);
+}
 
 // Initialize Firebase Authentication
-export const auth = getAuth(app);
-
-// Configure reCAPTCHA
-if (typeof window !== 'undefined') {
-  // This ensures Firebase auth is ready
-  auth.languageCode = 'en';
-}
+export const auth = authInstance;
 
 // Helper function to setup reCAPTCHA verifier
 export const setupRecaptchaVerifier = (containerId: string) => {
   try {
+    if (!auth) {
+      throw new Error('Firebase auth is not initialized');
+    }
+
     // Check if container exists
     let container = document.getElementById(containerId);
     if (!container) {
@@ -34,52 +46,50 @@ export const setupRecaptchaVerifier = (containerId: string) => {
       div.id = containerId;
       div.style.display = 'none';
       document.body.appendChild(div);
-      container = div;
     }
 
-    // Create verifier with container ID (not the element)
-    const verifier = new RecaptchaVerifier(
-      containerId,
-      {
-        size: 'invisible',
-        callback: (response: any) => {
-          console.log('reCAPTCHA verified:', response);
-        },
-        'expired-callback': () => {
-          console.log('reCAPTCHA expired');
-        },
-      },
-      auth
-    );
+    // Ensure auth has required properties
+    if (auth.settings && typeof auth.settings === 'object') {
+      if (!auth.settings.appVerificationDisabledForTesting) {
+        auth.settings.appVerificationDisabledForTesting = false;
+      }
+    }
 
+    const verifier = new RecaptchaVerifier(containerId, {
+      size: 'invisible',
+      callback: (response) => {
+        console.log('reCAPTCHA verified');
+      },
+      'expired-callback': () => {
+        console.log('reCAPTCHA expired');
+      },
+    }, auth);
+
+    console.log('reCAPTCHA verifier created successfully');
     return verifier;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to setup reCAPTCHA verifier:', error);
-    console.error('Auth object:', auth);
-    console.error('Auth app:', auth?.app);
-    throw new Error(
-      `reCAPTCHA setup failed: ${error.message}. Make sure Firebase is properly initialized with a valid API key.`
-    );
+    throw error;
   }
 };
 
 // Helper function to sign in with phone number
-export const sendOTP = async (phoneNumber: string, appVerifier: RecaptchaVerifier) => {
+export const sendOTP = async (phoneNumber, appVerifier) => {
   try {
     const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
     return confirmationResult;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error sending OTP:', error);
     throw error;
   }
 };
 
 // Helper function to verify OTP
-export const verifyOTP = async (confirmationResult: any, otp: string) => {
+export const verifyOTP = async (confirmationResult, otp) => {
   try {
     const result = await confirmationResult.confirm(otp);
     return result.user;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error verifying OTP:', error);
     throw error;
   }
@@ -87,7 +97,7 @@ export const verifyOTP = async (confirmationResult: any, otp: string) => {
 
 // Helper function to get ID token
 export const getIdToken = async () => {
-  if (auth.currentUser) {
+  if (auth && auth.currentUser) {
     return await auth.currentUser.getIdToken();
   }
   return null;
@@ -97,7 +107,7 @@ export const getIdToken = async () => {
 export const firebaseSignOut = async () => {
   try {
     await signOut(auth);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error signing out:', error);
     throw error;
   }
