@@ -208,7 +208,7 @@ const CSCPhoneAuthForm = ({
           <div
             ref={recaptchaContainerRef}
             id="csc-recaptcha-container"
-            className="mb-4"
+            className="mb-4 min-h-0"
           />
 
           <div className="space-y-2">
