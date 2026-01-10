@@ -162,6 +162,12 @@ router.post('/login', async (req, res: Response) => {
       });
     }
 
+    if (cscCenter.status === 'pending') {
+      return res.status(403).json({ 
+        message: 'Your account is pending verification. You can login once an admin approves your registration.' 
+      });
+    }
+
     const user = await User.findById(cscCenter.userId);
     if (!user) {
       return res.status(404).json({ message: 'User account not found' });

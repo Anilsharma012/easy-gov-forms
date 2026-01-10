@@ -347,6 +347,16 @@ router.post('/:id/assign-leads', verifyToken, isAdmin, async (req: AuthRequest, 
     
     center.usedLeads += leadIds.length;
     await center.save();
+
+    // Send email notification for lead assignment
+    if (center && center.email) {
+      await sendEmail(
+        center.email,
+        'New Leads Assigned',
+        `Hello ${center.ownerName},\n\n${leadIds.length} new leads have been assigned to your center. Please check your dashboard for details.`,
+        `<h1>New Leads Assigned</h1><p>Hello ${center.ownerName},</p><p><strong>${leadIds.length} new leads</strong> have been assigned to your center.</p><p>Please check your dashboard for details.</p>`
+      );
+    }
     
     res.json({ message: `${leadIds.length} leads assigned successfully`, center });
   } catch (error: any) {
@@ -558,6 +568,14 @@ router.patch('/:id/approve', verifyToken, isAdmin, async (req: AuthRequest, res:
       return res.status(404).json({ message: 'Center not found' });
     }
     
+    // Send Approval Notification
+    await sendEmail(
+      center.email,
+      'CSC Center Verified - Login Now',
+      `Hello ${center.ownerName},\n\nYour CSC Center "${center.centerName}" has been verified by the admin. You can now login using your registered email and password.\n\nWelcome to Digital Seva Portal!`,
+      `<h1>Account Verified</h1><p>Hello ${center.ownerName},</p><p>Your CSC Center <strong>"${center.centerName}"</strong> has been verified by the admin.</p><p>You can now login using your registered email and password.</p><p>Welcome to Digital Seva Portal!</p>`
+    );
+
     res.json({ message: 'Center approved successfully', center });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to approve center' });
