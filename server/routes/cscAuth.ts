@@ -252,4 +252,164 @@ router.post('/logout', (req, res: Response) => {
   res.json({ message: 'Logged out successfully' });
 });
 
+// Phone-based OTP authentication for CSC centers
+router.post('/phone-login', async (req: Response, res: Response) => {
+  try {
+    const { idToken, phoneNumber } = req.body;
+
+    if (!idToken || !phoneNumber) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Format phone number with country code
+    const formattedPhone = phoneNumber.startsWith('+91') ? phoneNumber : '+91' + phoneNumber.replace(/^91/, '');
+
+    // Find user and CSC center by phone number
+    const user = await User.findOne({ phone: formattedPhone, role: 'csc' });
+    if (!user) {
+      return res.status(404).json({ message: 'CSC Center not found. Please register first.' });
+    }
+
+    const cscCenter = await CSCCenter.findOne({ userId: user._id });
+    if (!cscCenter) {
+      return res.status(404).json({ message: 'CSC Center profile not found' });
+    }
+
+    if (cscCenter.status === 'rejected') {
+      return res.status(403).json({
+        message: 'Your CSC Center registration was rejected. Please contact support.',
+        reason: cscCenter.rejectionReason
+      });
+    }
+
+    if (cscCenter.status === 'pending') {
+      return res.status(403).json({
+        message: 'Your account is pending verification. You can login once an admin approves your registration.'
+      });
+    }
+
+    // Link Firebase UID if not already linked
+    if (!user.firebaseUid) {
+      user.firebaseUid = idToken;
+      await user.save();
+    }
+
+    const token = generateToken(user._id.toString(), 'csc');
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      message: 'Login successful',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: 'csc',
+      },
+      cscCenter: {
+        id: cscCenter._id,
+        centerName: cscCenter.centerName,
+        status: cscCenter.status,
+        totalLeads: cscCenter.totalLeads,
+        usedLeads: cscCenter.usedLeads,
+      },
+    });
+  } catch (error: any) {
+    console.error('CSC Phone Login error:', error);
+    res.status(500).json({ message: error.message || 'Phone login failed' });
+  }
+});
+
+// CSC Phone-based signup
+router.post('/phone-signup', async (req: Response, res: Response) => {
+  try {
+    const { idToken, phoneNumber } = req.body;
+
+    if (!idToken || !phoneNumber) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Format phone number with country code
+    const formattedPhone = phoneNumber.startsWith('+91') ? phoneNumber : '+91' + phoneNumber.replace(/^91/, '');
+
+    // Check if user already exists
+    let user = await User.findOne({ phone: formattedPhone });
+    if (user && user.role === 'csc') {
+      return res.status(400).json({ message: 'CSC Center with this phone number already exists' });
+    }
+
+    if (!user) {
+      // Create new user for CSC
+      const userName = `CSC-${formattedPhone.slice(-4)}`;
+      user = new User({
+        name: userName,
+        phone: formattedPhone,
+        email: `csc-${formattedPhone}@easygov.local`,
+        role: 'csc',
+        authMethod: 'firebase-phone',
+        firebaseUid: idToken,
+      });
+      await user.save();
+    } else {
+      // Link to existing user if not already linked
+      if (!user.firebaseUid) {
+        user.firebaseUid = idToken;
+        user.role = 'csc';
+        user.authMethod = 'firebase-phone';
+        await user.save();
+      }
+    }
+
+    // Create CSC Center profile (will be completed by user later)
+    let cscCenter = await CSCCenter.findOne({ userId: user._id });
+    if (!cscCenter) {
+      cscCenter = new CSCCenter({
+        userId: user._id,
+        centerName: `CSC Center - ${formattedPhone.slice(-4)}`,
+        ownerName: `User ${formattedPhone.slice(-4)}`,
+        email: user.email,
+        phone: formattedPhone,
+        password: idToken,
+        status: 'pending',
+        documents: [],
+      });
+      await cscCenter.save();
+    }
+
+    const token = generateToken(user._id.toString(), 'csc');
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(201).json({
+      message: 'CSC account created successfully. Complete your profile to activate.',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: 'csc',
+      },
+      cscCenter: {
+        id: cscCenter._id,
+        centerName: cscCenter.centerName,
+        status: cscCenter.status,
+      },
+    });
+  } catch (error: any) {
+    console.error('CSC Phone Signup error:', error);
+    res.status(500).json({ message: error.message || 'Phone signup failed' });
+  }
+});
+
 export default router;
