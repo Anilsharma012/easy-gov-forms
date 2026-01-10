@@ -148,6 +148,15 @@ const userSchema = new Schema<IUser>({
     type: Number,
     default: 0,
   },
+  firebaseUid: {
+    type: String,
+    sparse: true,
+  },
+  authMethod: {
+    type: String,
+    enum: ['email-password', 'firebase-phone'],
+    default: 'email-password',
+  },
 }, {
   timestamps: true,
 });
