@@ -82,7 +82,17 @@ const PhoneAuthForm = ({ onSuccess, onError }: PhoneAuthFormProps) => {
   const handleResendOTP = async () => {
     if (resendTimer > 0) return;
 
-    if (!recaptchaContainerRef.current) return;
+    if (!recaptchaContainerRef.current) {
+      if (onError) {
+        onError('reCAPTCHA container not found. Please refresh the page.');
+      }
+      return;
+    }
+
+    // Ensure container ID is set
+    if (!recaptchaContainerRef.current.id) {
+      recaptchaContainerRef.current.id = 'recaptcha-container';
+    }
 
     const success = await sendPhoneOTP(
       phoneNumber,
@@ -91,6 +101,8 @@ const PhoneAuthForm = ({ onSuccess, onError }: PhoneAuthFormProps) => {
 
     if (success) {
       setResendTimer(60);
+    } else if (onError) {
+      onError(error || 'Failed to resend OTP');
     }
   };
 
