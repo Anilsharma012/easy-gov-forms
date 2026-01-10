@@ -5,8 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, User, Mail, Phone, Lock, Eye, EyeOff, MapPin, FileText, Upload, Image, IdCard, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import CSCPhoneAuthForm from "@/components/CSCPhoneAuthForm";
 
 interface FileUpload {
   fileName: string;
