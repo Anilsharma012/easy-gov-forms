@@ -7,7 +7,7 @@ import { Phone, Loader2, CheckCircle2 } from 'lucide-react';
 import { usePhoneAuth } from '@/hooks/usePhoneAuth';
 
 interface PhoneAuthFormProps {
-  onSuccess?: (idToken: string) => void;
+  onSuccess?: (idToken: string, phoneNumber: string) => void;
   onError?: (error: string) => void;
 }
 
