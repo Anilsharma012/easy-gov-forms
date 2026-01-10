@@ -11,9 +11,13 @@ const CSCLogin = () => {
   const { toast } = useToast();
   const { cscPhoneAuth } = useAuth();
 
-  const handlePhoneAuthSuccess = async (idToken: string, firebaseUser: any) => {
+  const handlePhoneAuthSuccess = async (
+    idToken: string,
+    firebaseUser: any,
+    phoneNumber: string
+  ) => {
     try {
-      await cscPhoneAuth(idToken, firebaseUser.phoneNumber, "login");
+      await cscPhoneAuth(idToken, phoneNumber, "login");
       toast({
         title: "Login Successful",
         description: "Welcome to CSC Dashboard!",
