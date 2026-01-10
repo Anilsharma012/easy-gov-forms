@@ -184,7 +184,7 @@ const PhoneAuthForm = ({ onSuccess, onError }: PhoneAuthFormProps) => {
           <div
             ref={recaptchaContainerRef}
             id="recaptcha-container"
-            className="mb-4"
+            className="mb-4 min-h-0"
           />
 
           <div className="space-y-2">
