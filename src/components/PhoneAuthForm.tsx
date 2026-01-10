@@ -61,7 +61,7 @@ const PhoneAuthForm = ({ onSuccess, onError }: PhoneAuthFormProps) => {
 
     if (result?.idToken) {
       if (onSuccess) {
-        onSuccess(result.idToken);
+        onSuccess(result.idToken, phoneNumber);
       }
     } else if (onError) {
       onError(error || 'Failed to verify OTP');
