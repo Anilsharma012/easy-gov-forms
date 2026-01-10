@@ -228,7 +228,35 @@ const CSCRegister = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <Tabs value={authMode} onValueChange={(value) => setAuthMode(value as 'phone' | 'traditional')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="phone">Quick Registration</TabsTrigger>
+              <TabsTrigger value="traditional">Full Registration</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="phone">
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Sign up with your mobile number and verify via OTP. Complete your profile details later.
+                  </p>
+                  <CSCPhoneAuthForm
+                    mode="signup"
+                    onSuccess={handlePhoneAuthSuccess}
+                    onError={(error) =>
+                      toast({
+                        title: "Error",
+                        description: error,
+                        variant: "destructive",
+                      })
+                    }
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="traditional">
+              <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="centerName">Center Name</Label>
@@ -524,10 +552,12 @@ const CSCRegister = () => {
               </label>
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" size="lg" disabled={!acceptTerms || isLoading}>
-              {isLoading ? "Submitting..." : "Submit Registration"}
-            </Button>
-          </form>
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" size="lg" disabled={!acceptTerms || isLoading}>
+                  {isLoading ? "Submitting..." : "Submit Registration"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already a partner?{" "}
