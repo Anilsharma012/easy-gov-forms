@@ -249,4 +249,63 @@ router.post('/admin/login', async (req: Request, res: Response) => {
   }
 });
 
+// Phone-based OTP authentication for users
+router.post('/phone-login', async (req: Request, res: Response) => {
+  try {
+    const { idToken, phoneNumber } = req.body;
+
+    if (!idToken || !phoneNumber) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Format phone number with country code
+    const formattedPhone = phoneNumber.startsWith('+91') ? phoneNumber : '+91' + phoneNumber.replace(/^91/, '');
+
+    // Find or create user by phone number
+    let user = await User.findOne({ phone: formattedPhone });
+
+    if (!user) {
+      // Create new user if doesn't exist
+      const userName = `User-${formattedPhone.slice(-4)}`;
+      user = new User({
+        name: userName,
+        phone: formattedPhone,
+        email: `${formattedPhone}@easygov.local`,
+        role: 'user',
+        authMethod: 'firebase-phone',
+        firebaseUid: idToken,
+      });
+      await user.save();
+    } else if (!user.firebaseUid) {
+      // Link Firebase UID to existing user
+      user.firebaseUid = idToken;
+      await user.save();
+    }
+
+    const token = generateToken(user._id.toString(), user.role);
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      message: 'Login successful',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+      token,
+    });
+  } catch (error: any) {
+    console.error('Phone login error:', error);
+    res.status(500).json({ message: error.message || 'Phone login failed' });
+  }
+});
+
 export default router;
