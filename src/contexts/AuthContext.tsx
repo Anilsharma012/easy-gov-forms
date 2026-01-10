@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { firebaseSignOut } from '@/lib/firebase';
 
 interface User {
   id: string;
   name: string;
   email: string;
   phone?: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'csc';
+  firebaseUid?: string;
 }
 
 interface AuthContextType {
@@ -15,6 +17,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  phoneLogin: (idToken: string, phoneNumber: string) => Promise<void>;
+  cscPhoneAuth: (idToken: string, phoneNumber: string, mode: 'login' | 'signup') => Promise<void>;
   logout: () => Promise<void>;
 }
 
