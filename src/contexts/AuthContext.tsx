@@ -106,12 +106,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   };
 
+  const phoneLogin = async (idToken: string, phoneNumber: string) => {
+    const response = await fetch('/api/auth/phone-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ idToken, phoneNumber }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Phone login failed');
+    }
+
+    setUser(data.user);
+  };
+
+  const cscPhoneAuth = async (
+    idToken: string,
+    phoneNumber: string,
+    mode: 'login' | 'signup'
+  ) => {
+    const endpoint =
+      mode === 'login' ? '/api/csc/auth/phone-login' : '/api/csc/auth/phone-signup';
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ idToken, phoneNumber }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'CSC phone authentication failed');
+    }
+
+    setUser(data.user);
+  };
+
   const logout = async () => {
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
+      await firebaseSignOut();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -122,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated, login, adminLogin, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated, login, adminLogin, register, phoneLogin, cscPhoneAuth, logout }}>
       {children}
     </AuthContext.Provider>
   );
