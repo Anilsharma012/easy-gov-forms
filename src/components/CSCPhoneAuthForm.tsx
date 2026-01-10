@@ -48,7 +48,18 @@ const CSCPhoneAuthForm = ({
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recaptchaContainerRef.current) return;
+
+    if (!recaptchaContainerRef.current) {
+      if (onError) {
+        onError('reCAPTCHA container not found. Please refresh the page.');
+      }
+      return;
+    }
+
+    // Ensure container ID is set
+    if (!recaptchaContainerRef.current.id) {
+      recaptchaContainerRef.current.id = 'csc-recaptcha-container';
+    }
 
     const success = await sendCSCPhoneOTP(
       localPhone,
